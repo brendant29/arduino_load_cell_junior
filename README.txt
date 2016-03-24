@@ -1,0 +1,1 @@
+Required libraries: bogde's HX711 library, Arduino Time library.
