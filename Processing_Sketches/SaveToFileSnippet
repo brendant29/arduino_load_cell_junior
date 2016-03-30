@@ -1,0 +1,12 @@
+// String coming from Arduino looks like '2016-03-24','01:23:45,0.1,0.4'
+String columns[] = split(stringFromArduino,',');
+// TableRow stuff the same two lines
+TableRow newRow = dataTable.addRow(); //add a row for this new reading
+newRow.setString("Date",columns[0]);
+newRow.setString("Time",columns[1]);
+newRow.setFloat("LoadCell 1",float(columns[2]);
+newRow.setFloat("LoadCell 2",float(columns[3]);
+// etc.
+// Output to file looks like:
+// "Date","Time","LoadCell 1","LoadCell 2"
+// '2016-03-24','01:23:45',0.1,0.4
