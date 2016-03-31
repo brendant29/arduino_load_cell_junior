@@ -11,13 +11,12 @@ public static final String TIME_HEADER = "T"; //header for arduino serial time m
 public static final char TIME_REQUEST = 7;  // ASCII bell character 
 public static final char LF = 10;     // ASCII linefeed
 public static final char CR = 13;     // ASCII linefeed
+final String directory = "C:/Users/brendan/Desktop/Arduino_Load_Cell/Processing_Sketches/SaveToExtantFile/sample_data/";
 
 Serial myPort;     // Create object from Serial class
-
-int numReadings = 10; //keeps track of how many readings you'd like to take before writing the file. 
-int readingCounter = 0; //counts each reading to compare to numReadings. 
  
 String fileName;
+String filePath;
 
 void setup() {  
   size(200, 200); //<>//
@@ -40,34 +39,34 @@ void serialEvent(Serial myPort){
   if (val!= null) { //We have a reading! Record it.
     val = trim(val); //gets rid of any whitespace or Unicode nonbreakable space
     print("Val: ");println(val); //Optional, useful for debugging. If you see this, you know data is being sent. Delete if  you like. 
-    String sensorVals[] = split(val, ','); //parses the packet from Arduino and places the valeus into the sensorVals array. I am assuming floats. Change the data type to match the datatype coming from Arduino. 
-    //print("SensorVals[]: "); println(sensorVals);
+
+    fileName = "thing2.0"; 
+    filePath = directory + fileName + ".csv";
+    print("filename is: "); println(fileName);
     
+    if(!(new File(filePath).isFile())) {
+      println("making a new file");
+      PrintWriter fileMaker = createWriter(filePath);
+      fileMaker.println("Date,Time,loadcell1,loadcell2");
+      fileMaker.flush();
+      fileMaker.close();
+    }
     
-    
-    readingCounter++; //optional, use if you'd like to write your file every numReadings reading cycles
-    
-    if (readingCounter % numReadings ==0)//The % is a modulus, a math operator that signifies remainder after division. The if statement checks if readingCounter is a multiple of numReadings (the remainder of readingCounter/numReadings is 0)
-    {
-      fileName = "thing.csv"; //this filename is of the form date+time
-      print("filename is :"); println(fileName);
-      
-      try {
-        output = new FileWriter(fileName, true); //the true will append the new data
-        output.write(sensorVals + "\n");
-        println("saved to file");
-      }
-      catch (IOException e) {
-        println("It Broke");
-        e.printStackTrace();
-      }
-      finally {
-        if (output != null) {
-          try {
-            output.close();
-          } catch (IOException e) {
-            println("Error while closing the writer");
-          }
+    try {
+      output = new FileWriter(filePath, true); //the true will append the new data
+      output.write(val + "\n"); //ONLY SAVES MOST RECENT VALUES!!!
+      println("saved to file");
+    }
+    catch (IOException e) {
+      println("It Broke");
+      e.printStackTrace();
+    }
+    finally {
+      if (output != null) {
+        try {
+          output.close();
+        } catch (IOException e) {
+          println("Error while closing the writer");
         }
       }
     }

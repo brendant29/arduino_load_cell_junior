@@ -61,7 +61,7 @@ void digitalClockDisplay(){
 
 void printDigits(int digits){
   // utility function for digital clock display: prints preceding colon and leading 0
-  Serial.print("-");
+  Serial.print(":");
   if(digits < 10)
     Serial.print('0');
   Serial.print(digits);
