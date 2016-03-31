@@ -4,26 +4,27 @@
 
 #define TIME_HEADER  'T'   // Header tag for serial time sync message
 #define TIME_REQUEST  7    // ASCII bell character requests a time sync message 
-#define scaleCount 4
+#define SCALE_COUNT 4
+#define TIME_BETWEEN_READINGS 2000 //time between readings, in milliseconds
 
-int pinsDOUT[scaleCount] = {3,5,7,9}; 
+int pinsDOUT[SCALE_COUNT] = {3,5,7,9}; 
 //The pins hooked up to the respective cells' DOUT
 
-int pinsSCK[scaleCount] = {2,4,6,8};
+int pinsSCK[SCALE_COUNT] = {2,4,6,8};
 //The pins hooked up to the respective cells' SCK
 
-float calibrations[scaleCount] = {-10000, -10000, -10000, -10000};
+float calibrations[SCALE_COUNT] = {-10000, -10000, -10000, -10000};
 //The calibration factors for the cells
 
-HX711 *allCells[scaleCount] = {NULL, NULL, NULL, NULL}; 
+HX711 *allCells[SCALE_COUNT] = {NULL, NULL, NULL, NULL}; 
 
 void setup()  {
   Serial.begin(9600);
-  pinMode(13, OUTPUT);
+  //pinMode(13, OUTPUT);
   setSyncProvider( requestSync);  //set function to call when sync required
   
   //setting up the cells
-  for(int ii=0; ii<scaleCount; ii++){
+  for(int ii=0; ii<SCALE_COUNT; ii++){
     allCells[ii] = new HX711(pinsDOUT[ii], pinsSCK[ii]);
     allCells[ii]->tare();
     allCells[ii]->set_scale(calibrations[ii]);
@@ -43,30 +44,32 @@ void loop(){
   }
   
   if (timeStatus() == timeSet) {
-    digitalWrite(13, HIGH); // LED on if synced
+    //digitalWrite(13, HIGH); // LED on if synced
   } else {
-    digitalWrite(13, LOW);  // LED off if needs refresh
+    //digitalWrite(13, LOW);  // LED off if needs refresh
     //Serial.println("Need Sync");
   }
-  delay(2000);
+
+  delay(TIME_BETWEEN_READINGS);
 }
 
 void digitalClockDisplay(){
   // digital clock display of the time
-  Serial.print(year());
+  unsigned long timeNow = now();
+  Serial.print(year(timeNow));
   Serial.print("-");
-  Serial.print(month());
+  Serial.print(month(timeNow));
   Serial.print("-");
-  Serial.print(day()); 
+  Serial.print(day(timeNow)); 
   Serial.print(",");
-  Serial.print(hour());
-  printDigits(minute());
-  printDigits(second()); 
-  for(int ii=0; ii<scaleCount; ii++){
+  Serial.print(hour(timeNow));
+  printDigits(minute(timeNow));
+  printDigits(second(timeNow)); 
+  for(int ii=0; ii<SCALE_COUNT; ii++){
     Serial.print(",");
     Serial.print(allCells[ii]->get_units()); //the actual reading
   }
-  Serial.println(); 
+  //Serial.println(); 
 }
 
 void printDigits(int digits){
