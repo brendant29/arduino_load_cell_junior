@@ -4,8 +4,6 @@ import java.util.Calendar;
 import java.util.GregorianCalendar;
 import java.io.FileWriter;
  
-FileWriter output = null;
-
 public static final short portIndex = 0;  // select the com port, 0 is the first port
 public static final String TIME_HEADER = "T"; //header for arduino serial time message 
 public static final char TIME_REQUEST = 7;  // ASCII bell character 
@@ -13,10 +11,14 @@ public static final char LF = 10;     // ASCII linefeed
 public static final char CR = 13;     // ASCII linefeed
 final String directory = "C:/Users/brendan/Desktop/Arduino_Load_Cell/Processing_Sketches/SaveToExtantFile/sample_data/";
 
+FileWriter output = null;
+
 Serial myPort;     // Create object from Serial class
  
 String fileName;
 String filePath;
+
+boolean needHeader = true;
 
 void setup() {  
   size(200, 200); //<>//
@@ -45,15 +47,15 @@ void serialEvent(Serial myPort){
     print("filename is: "); println(fileName);
     
     if(!(new File(filePath).isFile())) {
-      println("making a new file");
-      PrintWriter fileMaker = createWriter(filePath);
-      fileMaker.println("Date,Time,loadcell1,loadcell2");
-      fileMaker.flush();
-      fileMaker.close();
+      needHeader = true;
     }
     
     try {
       output = new FileWriter(filePath, true); //the true will append the new data
+      if(needHeader) {
+        output.write("Date,Time,loadcell1,loadcell2\n");
+        needHeader = false;
+      }
       output.write(val + "\n"); //ONLY SAVES MOST RECENT VALUES!!!
       println("saved to file");
     }
