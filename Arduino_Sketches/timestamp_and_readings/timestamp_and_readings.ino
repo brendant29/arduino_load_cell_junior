@@ -1,4 +1,3 @@
-
 #include <TimeLib.h>
 #include <HX711.h>
 
@@ -69,7 +68,7 @@ void digitalClockDisplay(){
     Serial.print(",");
     Serial.print(allCells[ii]->get_units()); //the actual reading
   }
-  //Serial.println(); 
+  Serial.println(); 
 }
 
 void printDigits(int digits){

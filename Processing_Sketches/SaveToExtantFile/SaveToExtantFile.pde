@@ -9,7 +9,8 @@ public static final String TIME_HEADER = "T"; //header for arduino serial time m
 public static final char TIME_REQUEST = 7;  // ASCII bell character 
 public static final char LF = 10;     // ASCII linefeed
 public static final char CR = 13;     // ASCII linefeed
-final String directory = "C:/Users/brendan/Desktop/Arduino_Load_Cell/Processing_Sketches/SaveToExtantFile/sample_data/";
+final String DIRECTORY = "C:/Users/brendan/Desktop/Arduino_Load_Cell/Processing_Sketches/SaveToExtantFile/sample_data/";
+final int SCALE_COUNT = 4;
 
 FileWriter output = null;
 
@@ -43,7 +44,7 @@ void serialEvent(Serial myPort){
     print("Val: ");println(val); //Optional, useful for debugging. If you see this, you know data is being sent. Delete if  you like. 
 
     fileName = "thing2.0"; 
-    filePath = directory + fileName + ".csv";
+    filePath = DIRECTORY + fileName + ".csv";
     print("filename is: "); println(fileName);
     
     if(!(new File(filePath).isFile())) {
@@ -53,7 +54,11 @@ void serialEvent(Serial myPort){
     try {
       output = new FileWriter(filePath, true); //the true will append the new data
       if(needHeader) {
-        output.write("Date,Time,loadcell1,loadcell2\n");
+        output.write("Date,Time");
+        for(int ii = 0; ii < SCALE_COUNT; ii++){
+          output.write(",loadcell" + (ii + 1));          
+        }
+        output.write("\n");
         needHeader = false;
       }
       output.write(val + "\n"); //ONLY SAVES MOST RECENT VALUES!!!

@@ -17,7 +17,7 @@ void setup() {
   Serial.println("loaded");
 }
 
-void loop() {
+int loop() {
   float analogValue = (analogRead(0)/*-analogRead(1)*/);
   
   // running average - We smooth the readings a little bit
