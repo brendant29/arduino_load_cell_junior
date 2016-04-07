@@ -43,7 +43,7 @@ void serialEvent(Serial myPort){
     val = trim(val); //gets rid of any whitespace or Unicode nonbreakable space
     print("Val: ");println(val); //Optional, useful for debugging. If you see this, you know data is being sent. Delete if  you like. 
 
-    fileName = "thing2.0"; 
+    fileName = "thing3.0"; 
     filePath = DIRECTORY + fileName + ".csv";
     print("filename is: "); println(fileName);
     
