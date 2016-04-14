@@ -1,3 +1,7 @@
+#include <Adafruit_CC3000.h>
+#include <Adafruit_CC3000_Server.h>
+#include <ccspi.h>
+
 #include <SPI.h>
 #include <SD.h>
 #include <TimeLib.h>
@@ -9,28 +13,28 @@ const int chipPin = 4;
 
 //===============Change values as necessary===================
 const String fileName = "DATALOG.txt";
-#define SCALE_COUNT 4
-#define TIME_BETWEEN_READINGS 500 //time between readings, in milliseconds
-#define TIME_BETWEEN_SAVES 2000 //time between saves, in milliseconds
+#define SCALE_COUNT 2
+#define TIME_BETWEEN_READINGS 50 //time between readings, in milliseconds
+#define TIME_BETWEEN_SAVES 500 //time between saves, in milliseconds
 
-int pinsDOUT[SCALE_COUNT] = {3,5,7,9}; 
+int pinsDOUT[SCALE_COUNT] = {7,A0}; 
 //The pins hooked up to the respective cells' DOUT
 
-int pinsSCK[SCALE_COUNT] = {2,4,6,8};
+int pinsSCK[SCALE_COUNT] = {6,A1};
 //The pins hooked up to the respective cells' SCK
 
-float calibrations[SCALE_COUNT] = {-10000, -10000, -10000, -10000};
+float calibrations[SCALE_COUNT] = {-10000, -10000};
 //The calibration factors for the cells
 
 int gain = 128;
 //the gain can be 128 or 64 on channel A, or 32 on channel B
 //=============================================================
 
-HX711 *allCells[SCALE_COUNT] = {NULL, NULL, NULL, NULL}; 
+HX711 *allCells[SCALE_COUNT] = {NULL, NULL}; 
 
 unsigned long prevRead = 0;
 unsigned long prevSave = 0;
-float cellReadings[SCALE_COUNT] = {0,0,0,0};
+float cellReadings[SCALE_COUNT] = {0,0};
 int readsSinceSave = 0;
 File dataFile;
 
