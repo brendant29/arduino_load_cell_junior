@@ -1,0 +1,37 @@
+<p id="notice"><%= notice %></p>
+
+<h1>Listing Time Series Data</h1>
+
+<table>
+  <thead>
+    <tr>
+      <th>Datetime</th>
+      <th>Station</th>
+      <th>Lc1</th>
+      <th>Lc2</th>
+      <th>Lc3</th>
+      <th>Lc4</th>
+      <th colspan="3"></th>
+    </tr>
+  </thead>
+
+  <tbody>
+    <% @time_series_data.each do |time_series_datum| %>
+      <tr>
+        <td><%= time_series_datum.datetime %></td>
+        <td><%= time_series_datum.station %></td>
+        <td><%= time_series_datum.lc1 %></td>
+        <td><%= time_series_datum.lc2 %></td>
+        <td><%= time_series_datum.lc3 %></td>
+        <td><%= time_series_datum.lc4 %></td>
+        <td><%= link_to 'Show', time_series_datum %></td>
+        <td><%= link_to 'Edit', edit_time_series_datum_path(time_series_datum) %></td>
+        <td><%= link_to 'Destroy', time_series_datum, method: :delete, data: { confirm: 'Are you sure?' } %></td>
+      </tr>
+    <% end %>
+  </tbody>
+</table>
+
+<br>
+
+<%= link_to 'New Time series datum', new_time_series_datum_path %>

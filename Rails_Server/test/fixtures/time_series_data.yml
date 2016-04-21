@@ -1,0 +1,17 @@
+# Read about fixtures at http://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
+
+one:
+  datetime: 2016-04-21 14:49:52
+  station_id: 
+  lc1: 1.5
+  lc2: 1.5
+  lc3: 1.5
+  lc4: 1.5
+
+two:
+  datetime: 2016-04-21 14:49:52
+  station_id: 
+  lc1: 1.5
+  lc2: 1.5
+  lc3: 1.5
+  lc4: 1.5

@@ -12,6 +12,7 @@ const int chipPin = 4;
 #define TIME_REQUEST  7    // ASCII bell character requests a time sync message 
 
 //===============Change values as necessary===================
+const String stationName = "Northwest";
 const String fileName = "DATALOG.txt";
 #define SCALE_COUNT 2
 #define TIME_BETWEEN_READINGS 50 //time between readings, in milliseconds
@@ -70,7 +71,7 @@ void loop(){
   
   if (millis() - prevSave > TIME_BETWEEN_SAVES) {
     
-    saveString(makeDataString(cellReadings, &readsSinceSave), dataFile);
+    saveString(makeDataString(cellReadings, &readsSinceSave, stationName), dataFile);
     prevSave = millis();
   }
   
@@ -89,15 +90,17 @@ String dateDisplay(time_t t) {
 }
 
 String timeDisplay(time_t t) {
-  String timer = String(hour(t));
+  String timer = stringDigits(hour(t));
+  timer += ":";
   timer += stringDigits(minute(t));
+  timer += ":";
   timer += stringDigits(second(t));
   return timer;
 }
 
 String stringDigits(int digits){
   // utility function for digital clock display: prints preceding colon and leading 0
-  String strDigits = ":";
+  String strDigits = "";
   if(digits < 10) {
     strDigits += '0';
   }
@@ -105,12 +108,13 @@ String stringDigits(int digits){
   return strDigits;
 }
 
-String makeDataString(float *cellReadings,int *readsSinceSave) {
+String makeDataString(float *cellReadings,int *readsSinceSave,String stationName) {
   String dataString = "";
   time_t t = now();
   dataString += dateDisplay(t);
-  dataString += ",";
+  dataString += " ";
   dataString += timeDisplay(t);
+  dataString += ",\""+stationName+"\""; // insert real station name here
   for (int ii=0; ii<SCALE_COUNT; ii++) {
     dataString += ",";
     dataString += cellReadings[ii] / *readsSinceSave;
@@ -126,6 +130,23 @@ void saveString(String mystring, File myFile){
   myFile.flush();
 }
 
+void postString(String data,WiFiClient client,String address,int port) {
+  data = "csv_line="+data;
+  if (client.connect(address,port)) { // REPLACE WITH YOUR SERVER ADDRESS
+    client.println("POST /time_series_data/upload HTTP/1.1"); 
+    client.println("Host: localhost"); // SERVER ADDRESS HERE TOO
+    client.println("Content-Type: application/x-www-form-urlencoded"); 
+    client.print("Content-Length: "); 
+    client.println(data.length()); 
+    client.println(); 
+    client.print(data); 
+  } 
+
+  if (client.connected()) { 
+    client.stop();  // DISCONNECT FROM THE SERVER
+  }
+
+}
 File startSDfile(int chipSelect, String filePath) {
   if (!SD.begin(chipSelect)) {
     

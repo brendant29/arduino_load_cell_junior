@@ -1,0 +1,41 @@
+<%= form_for(@time_series_datum) do |f| %>
+  <% if @time_series_datum.errors.any? %>
+    <div id="error_explanation">
+      <h2><%= pluralize(@time_series_datum.errors.count, "error") %> prohibited this time_series_datum from being saved:</h2>
+
+      <ul>
+      <% @time_series_datum.errors.full_messages.each do |message| %>
+        <li><%= message %></li>
+      <% end %>
+      </ul>
+    </div>
+  <% end %>
+
+  <div class="field">
+    <%= f.label :datetime %><br>
+    <%= f.datetime_select :datetime %>
+  </div>
+  <div class="field">
+    <%= f.label :station_id %><br>
+    <%= f.text_field :station_id %>
+  </div>
+  <div class="field">
+    <%= f.label :lc1 %><br>
+    <%= f.text_field :lc1 %>
+  </div>
+  <div class="field">
+    <%= f.label :lc2 %><br>
+    <%= f.text_field :lc2 %>
+  </div>
+  <div class="field">
+    <%= f.label :lc3 %><br>
+    <%= f.text_field :lc3 %>
+  </div>
+  <div class="field">
+    <%= f.label :lc4 %><br>
+    <%= f.text_field :lc4 %>
+  </div>
+  <div class="actions">
+    <%= f.submit %>
+  </div>
+<% end %>

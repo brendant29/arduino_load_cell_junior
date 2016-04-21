@@ -1,0 +1,34 @@
+<p id="notice"><%= notice %></p>
+
+<p>
+  <strong>Datetime:</strong>
+  <%= @time_series_datum.datetime %>
+</p>
+
+<p>
+  <strong>Station:</strong>
+  <%= @time_series_datum.station %>
+</p>
+
+<p>
+  <strong>Lc1:</strong>
+  <%= @time_series_datum.lc1 %>
+</p>
+
+<p>
+  <strong>Lc2:</strong>
+  <%= @time_series_datum.lc2 %>
+</p>
+
+<p>
+  <strong>Lc3:</strong>
+  <%= @time_series_datum.lc3 %>
+</p>
+
+<p>
+  <strong>Lc4:</strong>
+  <%= @time_series_datum.lc4 %>
+</p>
+
+<%= link_to 'Edit', edit_time_series_datum_path(@time_series_datum) %> |
+<%= link_to 'Back', time_series_data_path %>
