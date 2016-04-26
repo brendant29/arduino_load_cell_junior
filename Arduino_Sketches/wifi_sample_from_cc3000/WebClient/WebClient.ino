@@ -51,8 +51,8 @@ Adafruit_CC3000 cc3000 = Adafruit_CC3000(ADAFRUIT_CC3000_CS, ADAFRUIT_CC3000_IRQ
                                    // you're accessing is quick to respond, you can reduce this value.
 
 // What page to grab!
-#define WEBSITE      "localhost"
-#define WEBPAGE      "/"
+#define WEBSITE      "winter-runoff.soils.wisc.edu"
+#define WEBPAGE      "/stations"
 
 
 /**************************************************************************/
@@ -112,8 +112,8 @@ void setup(void)
     delay(500);
   }
 
-  ip = cc3000.IP2U32(144,92,93,191);
-  // ip = 2886994436;
+  //ip = cc3000.IP2U32(144,92,93,191);
+  //ip = 2886994436;
 
   cc3000.printIPdotsRev(ip);
   
@@ -127,9 +127,11 @@ void setup(void)
   /* Try connecting to the website.
      Note: HTTP/1.1 protocol is used to keep the server from closing the connection before all data is read.
   */
-  delay(1000);
+  Serial.print("connecting...");
   Adafruit_CC3000_Client www = cc3000.connectTCP(ip, 80);
-  delay(1000);
+  Serial.println("right! Next!");
+
+  /*
   if (www.connected()) {
     www.fastrprint(F("GET "));
     www.fastrprint(WEBPAGE);
@@ -139,6 +141,27 @@ void setup(void)
     www.println();
   } else {
     Serial.println(F("Connection failed"));    
+    return;
+  }
+  */
+
+  // String PostData = "time_series_datum%5Bdatetime%281i%29%5D=2017&time_series_datum%5Bdatetime%282i%29%5D=4&time_series_datum%5Bdatetime%283i%29%5D=26&time_series_datum%5Bdatetime%284i%29%5D=20&time_series_datum%5Bdatetime%285i%29%5D=52&time_series_datum%5Bstation_id%5D=1&time_series_datum%5Blc1%5D=15.0&time_series_datum%5Blc2%5D=2.0&time_series_datum%5Blc3%5D=3.0&time_series_datum%5Blc4%5D=4.0&commit=Create+Time+series+datum";
+  String PostData = "csv_line=2016-07-26 01:02:03,'Test Station',1.1,2.0,3.0,4.0";
+  if (www.connected()) {
+    Serial.print("Posting...");
+    www.println("POST /time_series_data/upload HTTP/1.1");
+    www.println("Host: winter-runoff.soils.wisc.edu");
+    www.println("User-Agent: Arduino/1.0");
+    www.println("Connection: close");
+    www.print("Content-Length: ");
+    www.println(PostData.length());
+    www.println();
+    www.println(PostData);
+    Serial.println("posted!");
+  } else {
+    Serial.println(F("NOPE!"));    
+    www.close();
+    cc3000.disconnect();
     return;
   }
 
