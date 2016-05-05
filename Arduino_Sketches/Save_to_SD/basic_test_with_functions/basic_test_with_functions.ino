@@ -37,7 +37,7 @@ void loop() {
 
 File startSDfile(int chipSelect, String filePath) {
   if (!SD.begin(chipSelect)) {
-    
+    Serial.println("I don't think the card's available.");
   }
   File newFile = SD.open(filePath, FILE_WRITE);
   return newFile;
