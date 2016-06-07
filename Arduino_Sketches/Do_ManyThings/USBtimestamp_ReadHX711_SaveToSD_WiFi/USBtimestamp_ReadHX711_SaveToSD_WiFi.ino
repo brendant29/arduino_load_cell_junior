@@ -4,7 +4,7 @@
 
 #include <SPI.h>
 #include <SD.h>
-#include <TimeLib.h>
+//#include <TimeLib.h>
 #include <HX711.h>
 
 //===============Change values as necessary===================
@@ -70,7 +70,7 @@ Adafruit_CC3000_Client client;
 
 void setup() {
   Serial.begin(9600);
-  setSyncProvider( requestSync);  //set function to call when sync required
+//  setSyncProvider( requestSync);  //set function to call when sync required
   
   dataFile = startSDfile(chipPin, fileName);
   
@@ -123,20 +123,20 @@ void loop(){
 //==================FUNCTIONS==================
 //=============================================
 String dateDisplay(time_t t) {
-  String date = String(year(t));
+  String date ;//= String(year(t));
   date += "-";
-  date += String(month(t));
+//  date += String(month(t));
   date += "-";
-  date += String(day(t));
+//  date += String(day(t));
   return date;
 }
 
 String timeDisplay(time_t t) {
-  String timer = stringDigits(hour(t));
+  String timer ;//= stringDigits(hour(t));
   timer += ":";
-  timer += stringDigits(minute(t));
+//  timer += stringDigits(minute(t));
   timer += ":";
-  timer += stringDigits(second(t));
+//  timer += stringDigits(second(t));
   return timer;
 }
 
@@ -152,7 +152,7 @@ String stringDigits(int digits){
 
 String makeDataString(float *cellReadings,int *readsSinceSave,String stationName) {
   String dataString = "";
-  time_t t = now();
+  time_t t ;//= now();
   dataString += dateDisplay(t);
   dataString += " ";
   dataString += timeDisplay(t);
@@ -225,7 +225,7 @@ void processSyncMessage() {
   if(Serial.find(TIME_HEADER)) {
      pctime = Serial.parseInt();
      if( pctime >= DEFAULT_TIME) { // check the integer is a valid time (greater than Jan 1 2013)
-       setTime(pctime); // Sync Arduino clock to the time received on the serial port
+//       setTime(pctime); // Sync Arduino clock to the time received on the serial port
      }
   }
 }
