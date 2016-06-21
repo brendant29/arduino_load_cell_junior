@@ -43,9 +43,9 @@ int readsSinceSave = 0;
 #define ADAFRUIT_CC3000_CS    10
 // Use hardware SPI for the remaining pins
 // On an UNO, SCK = 13, MISO = 12, and MOSI = 11
-Adafruit_CC3000 cc3000 = Adafruit_CC3000(ADAFRUIT_CC3000_CS, ADAFRUIT_CC3000_IRQ, ADAFRUIT_CC3000_VBAT,
+/*Adafruit_CC3000 cc3000 = Adafruit_CC3000(ADAFRUIT_CC3000_CS, ADAFRUIT_CC3000_IRQ, ADAFRUIT_CC3000_VBAT,
                                          SPI_CLOCK_DIVIDER); // you can change this clock speed
-
+*/
 #define WLAN_SSID       "UWNet"           // cannot be longer than 32 characters!
 #define WLAN_PASS       ""
 // Security can be WLAN_SEC_UNSEC, WLAN_SEC_WEP, WLAN_SEC_WPA or WLAN_SEC_WPA2
@@ -73,9 +73,6 @@ void setup() {
     allCells[ii]->tare();
     allCells[ii]->set_scale(calibrations[ii]);
   }  
-  cc3000.begin();
-  delay(5000);
-  wlan_stop();
 }
 
 void loop(){    
@@ -159,47 +156,49 @@ void saveString(String mystring) {
 
 bool uploadString(String mystring) {
   Serial.println(F("attempting upload"));
-  delay(1000);
-  /*if (!cc3000.begin()) {
+  Adafruit_CC3000 *cc3000 = new Adafruit_CC3000(ADAFRUIT_CC3000_CS, ADAFRUIT_CC3000_IRQ, ADAFRUIT_CC3000_VBAT, SPI_CLOCK_DIVIDER); // you can change this clock speed
+  if (!cc3000->begin()) {
     Serial.println(F("Couldn't begin()! Check your wiring?"));
+    delete cc3000;
     return false;
-  }*/
-  wlan_start(0);
-  delay(1000);
+  }
   Serial.println("blah");
-  //cc3000.reboot();
   delay(1000);
   Serial.println(F("CC3000 initialized. Connecting to Wifi..."));
-  if (!cc3000.connectToAP(WLAN_SSID, WLAN_PASS, WLAN_SECURITY, 1)) {
+  if (!cc3000->connectToAP(WLAN_SSID, WLAN_PASS, WLAN_SECURITY, 1)) {
     Serial.println(F("Wifi connection failed!"));
-    cc3000.stop();
+    cc3000->stop();
+    delete cc3000;
     return false;
   }
   Serial.println(F("Wifi connected"));
-  while (!cc3000.checkDHCP()) {
+  while (!cc3000->checkDHCP()) {
     delay(100); // ToDo: Insert a DHCP timeout!
     Serial.println(F("waiting for DHCP"));
   }
   Serial.println(F("connecting to server..."));
-  client = connectToServer();
+  client = connectToServer(cc3000);
   if (!client.connected()) {
     Serial.println(F("Server connection failed!"));
-    cc3000.disconnect();
-    cc3000.stop();
+    cc3000->disconnect();
+    cc3000->stop();
+    delete cc3000;
     return false;
   }
   if (!postString(mystring, client)) {
     Serial.println(F("Post failed!"));
     client.close();
-    cc3000.disconnect();
-    cc3000.stop();
+    cc3000->disconnect();
+    cc3000->stop();
+    delete cc3000;
     return false;
   }
   client.close();
-  cc3000.disconnect();
+  cc3000->disconnect();
   delay(1000);
-  cc3000.stop();
+  cc3000->stop();
   delay(1000);
+  delete cc3000;
   return true;
 }
 
@@ -263,10 +262,10 @@ bool postString(String data,Adafruit_CC3000_Client client) {
   return true;
 }
 
-Adafruit_CC3000_Client connectToServer() {
-  cc3000.getHostByName(WEBSITE, &ip);
+Adafruit_CC3000_Client connectToServer(Adafruit_CC3000 *cc3000) {
+  cc3000->getHostByName(WEBSITE, &ip);
   Serial.println(ip);
-  Adafruit_CC3000_Client client = cc3000.connectTCP(ip, 80);
+  Adafruit_CC3000_Client client = cc3000->connectTCP(ip, 80);
   return client;
 }
 
