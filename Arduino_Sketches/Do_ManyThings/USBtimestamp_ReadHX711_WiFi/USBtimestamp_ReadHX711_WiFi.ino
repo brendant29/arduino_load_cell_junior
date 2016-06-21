@@ -1,24 +1,23 @@
 #include <Adafruit_CC3000.h>
+#include <Adafruit_CC3000_Server.h>
+#include <ccspi.h>
 
-//#include <SD.h>
 #include <TimeLib.h>
 #include <HX711.h>
 
 //===============Change values as necessary===================
 const String stationName = "Test Station";
-const String fileName = "DATALOG.txt";
-#define SCALE_COUNT 2
-#define TIME_BETWEEN_READINGS 50 //time between readings, in milliseconds
-#define TIME_BETWEEN_SAVES 500 //time between saves, in milliseconds
-#define TIME_BETWEEN_UPLOADS 10000
+#define SCALE_COUNT 4
+#define TIME_BETWEEN_READINGS 500 //time between readings, in milliseconds
+#define TIME_BETWEEN_SAVES 5000 //time between saves, in milliseconds
 
-int pinsDOUT[SCALE_COUNT] = {7,A0}; 
+int pinsDOUT[SCALE_COUNT] = {7,A0,6,9}; 
 //The pins hooked up to the respective cells' DOUT
 
-int pinsSCK[SCALE_COUNT] = {6,A1};
+int pinsSCK[SCALE_COUNT] = {6,A1,A2,A3};
 //The pins hooked up to the respective cells' SCK
 
-float calibrations[SCALE_COUNT] = {-10000, -10000};
+float calibrations[SCALE_COUNT] = {-10000, -10000, -10000, -10000};
 //The calibration factors for the cells
 
 int gain = 128;
@@ -29,14 +28,13 @@ const int chipPin = 4;
 #define TIME_HEADER  'T'   // Header tag for serial time sync message
 #define TIME_REQUEST  7    // ASCII bell character requests a time sync message 
 
-HX711 *allCells[SCALE_COUNT] = {NULL, NULL}; 
+HX711 *allCells[SCALE_COUNT] = {NULL, NULL, NULL, NULL}; 
 
 unsigned long prevRead = 0;
 unsigned long prevSave = 0;
 unsigned long prevUpload = 0;
-float cellReadings[SCALE_COUNT] = {0,0};
+float cellReadings[SCALE_COUNT] = {0,0,0,0};
 int readsSinceSave = 0;
-//File dataFile;
 
 // These are the interrupt and control pins
 #define ADAFRUIT_CC3000_IRQ   3  // MUST be an interrupt pin!
@@ -48,8 +46,8 @@ int readsSinceSave = 0;
 Adafruit_CC3000 cc3000 = Adafruit_CC3000(ADAFRUIT_CC3000_CS, ADAFRUIT_CC3000_IRQ, ADAFRUIT_CC3000_VBAT,
                                          SPI_CLOCK_DIVIDER); // you can change this clock speed
 
-#define WLAN_SSID       "The Squishy of Rick"           // cannot be longer than 32 characters!
-#define WLAN_PASS       "brendane"
+#define WLAN_SSID       "UWNet"           // cannot be longer than 32 characters!
+#define WLAN_PASS       ""
 // Security can be WLAN_SEC_UNSEC, WLAN_SEC_WEP, WLAN_SEC_WPA or WLAN_SEC_WPA2
 #define WLAN_SECURITY   WLAN_SEC_WPA2
 
@@ -67,9 +65,6 @@ Adafruit_CC3000_Client client;
 
 void setup() {
   Serial.begin(9600);
-//  setSyncProvider( requestSync);  //set function to call when sync required
-  
-  //dataFile = startSDfile(chipPin, fileName);
   
   //setting up the cells
   for(int ii=0; ii<SCALE_COUNT; ii++){
@@ -77,15 +72,7 @@ void setup() {
     allCells[ii]->set_gain(gain);
     allCells[ii]->tare();
     allCells[ii]->set_scale(calibrations[ii]);
-  }
-  
-  if (!cc3000.begin())
-  {
-    Serial.println(F("Couldn't begin()! Check your wiring?"));
-    while(1);
-  }
-  
-  
+  }  
 }
 
 void loop(){    
@@ -105,22 +92,16 @@ void loop(){
   //average the readings and save to SD card
   if (millis() - prevSave > TIME_BETWEEN_SAVES) {
     
-    saveString(makeDataString(cellReadings, &readsSinceSave, stationName), /*dataFile*/);
+    saveString(makeDataString(cellReadings, &readsSinceSave, stationName));
     prevSave = millis();
-  }
-
-  //Upload to web server
-  if (millis() - prevUpload > TIME_BETWEEN_UPLOADS) {
-    
-  }
-  
+  } 
 }
 
 //=============================================
 //==================FUNCTIONS==================
 //=============================================
 String dateDisplay(time_t t) {
-  String date ;//= String(year(t));
+  String date = String(year(t));
   date += "-";
   date += String(month(t));
   date += "-";
@@ -129,7 +110,7 @@ String dateDisplay(time_t t) {
 }
 
 String timeDisplay(time_t t) {
-  String timer ;//= stringDigits(hour(t));
+  String timer = stringDigits(hour(t));
   timer += ":";
   timer += stringDigits(minute(t));
   timer += ":";
@@ -163,29 +144,100 @@ String makeDataString(float *cellReadings,int *readsSinceSave,String stationName
   return dataString;
 }
 
-void saveString(String mystring, /*File myFile*/){
+void saveString(String mystring) {
   Serial.println(mystring);
-  //myFile.println(mystring);
-  //myFile.flush();
+  if (uploadString(mystring)) {
+    Serial.println(F("Upload succeded!"));
+  }
+  else {
+    Serial.println(F("Upload failed!"));
+  }
 }
-/*
-bool uploadStrings(String mystrings[]) {
-  if (!cc3000.connectToAP(WLAN_SSID, WLAN_PASS, WLAN_SECURITY)) {
+
+bool uploadString(String mystring) {
+  Serial.println(F("attempting upload"));
+  if (!cc3000.begin()) {
+    Serial.println(F("Couldn't begin()! Check your wiring?"));
     return false;
   }
-  while (!cc3000.checkDHCP())
-  {
+  Serial.println("blah");
+  cc3000.reboot();
+  Serial.println(F("CC3000 initialized. Connecting to Wifi..."));
+  if (!cc3000.connectToAP(WLAN_SSID, WLAN_PASS, WLAN_SECURITY, 1)) {
+    Serial.println(F("Wifi connection failed!"));
+    cc3000.stop();
+    return false;
+  }
+  Serial.println(F("Wifi connected"));
+  while (!cc3000.checkDHCP()) {
     delay(100); // ToDo: Insert a DHCP timeout!
+    Serial.println(F("waiting for DHCP"));
   }
-  
-  for (int ii = 0; ii < 4; ii++) {
-    if (!client.connected()) {
+  Serial.println(F("connecting to server..."));
+  client = connectToServer();
+  if (!client.connected()) {
+    Serial.println(F("Server connection failed!"));
+    cc3000.disconnect();
+    cc3000.stop();
+    return false;
+  }
+  if (!postString(mystring, client)) {
+    Serial.println(F("Post failed!"));
+    client.close();
+    cc3000.disconnect();
+    cc3000.stop();
+    return false;
+  }
+  client.close();
+  cc3000.disconnect();
+  cc3000.stop();
+  return true;
+}
+
+/*
+bool uploadString(String mystring) {
+  bool success = 1;
+  Serial.println(F("attempting upload"));
+  success = cc3000.begin();
+  if (!success) {
+    Serial.println(F("Couldn't begin()! Check your wiring?"));
+  }
+  else {
+    Serial.println(F("CC3000 initialized. Connecting to Wifi..."));
+    success = cc3000.connectToAP(WLAN_SSID, WLAN_PASS, WLAN_SECURITY, 1);
+    if (!success) {
+      Serial.println(F("Wifi connection failed!"));
+    }
+    else {
+      Serial.println(F("Wifi connected"));
+      while (!cc3000.checkDHCP()) {
+        delay(100); // ToDo: Insert a DHCP timeout!
+        Serial.println(F("waiting for DHCP"));
+      }
+      Serial.println(F("connecting to server..."));
       client = connectToServer();
-   }
+      success = client.connected();
+      if (!success) {
+        Serial.println(F("Server connection failed!"));
+      }
+      else {
+        Serial.println(F("Connected. Attempting post..."));
+        success = postString(mystring, client);
+        if (!success) {
+          Serial.println(F("Post failed!"));
+        }
+        client.close();
+      }
+      cc3000.disconnect();
+    }
+    cc3000.stop();
   }
+  return success;
 }
 */
-void postString(String data,Adafruit_CC3000_Client client) {
+
+
+bool postString(String data,Adafruit_CC3000_Client client) {
   data = "csv_line="+data;
   char datachars[data.length()+1];
   data.toCharArray(datachars,data.length());
@@ -199,31 +251,25 @@ void postString(String data,Adafruit_CC3000_Client client) {
     client.println(); 
     client.fastrprint(datachars); 
   } 
+  return true;
 }
 
 Adafruit_CC3000_Client connectToServer() {
   cc3000.getHostByName(WEBSITE, &ip);
+  Serial.println(ip);
   Adafruit_CC3000_Client client = cc3000.connectTCP(ip, 80);
   return client;
 }
-/*
-File startSDfile(int chipSelect, String filePath) {
-  if (!SD.begin(chipSelect)) {
-    
-  }
-  File newFile = SD.open(filePath, FILE_WRITE);
-  return newFile;
-}
-*/
+
 void processSyncMessage() {
   unsigned long pctime;
   const unsigned long DEFAULT_TIME = 1357041600; // Jan 1 2013
 
   if(Serial.find(TIME_HEADER)) {
-     pctime = Serial.parseInt();
-     if( pctime >= DEFAULT_TIME) { // check the integer is a valid time (greater than Jan 1 2013)
-//       setTime(pctime); // Sync Arduino clock to the time received on the serial port
-     }
+    pctime = Serial.parseInt();
+    if( pctime >= DEFAULT_TIME) { // check the integer is a valid time (greater than Jan 1 2013)
+//      setTime(pctime); // Sync Arduino clock to the time received on the serial port
+    }
   }
 }
 
