@@ -41,8 +41,8 @@ It might not work on all networks!
 Adafruit_CC3000 cc3000 = Adafruit_CC3000(ADAFRUIT_CC3000_CS, ADAFRUIT_CC3000_IRQ, ADAFRUIT_CC3000_VBAT,
                                          SPI_CLOCK_DIVIDER); // you can change this clock speed
 
-#define WLAN_SSID       "The Squishy of Rick"           // cannot be longer than 32 characters!
-#define WLAN_PASS       "brendane"
+#define WLAN_SSID       "GALAXY_S4_4545"           // cannot be longer than 32 characters!
+#define WLAN_PASS       "wljo2151"
 // Security can be WLAN_SEC_UNSEC, WLAN_SEC_WEP, WLAN_SEC_WPA or WLAN_SEC_WPA2
 #define WLAN_SECURITY   WLAN_SEC_WPA2
 
@@ -66,7 +66,7 @@ uint32_t ip;
 
 void setup(void)
 {
-  Serial.begin(115200);
+  Serial.begin(9600);
   Serial.println(F("Hello, CC3000!\n")); 
 
   Serial.print("Free RAM: "); Serial.println(getFreeRam(), DEC);
@@ -146,7 +146,7 @@ void setup(void)
   */
 
   // String PostData = "time_series_datum%5Bdatetime%281i%29%5D=2017&time_series_datum%5Bdatetime%282i%29%5D=4&time_series_datum%5Bdatetime%283i%29%5D=26&time_series_datum%5Bdatetime%284i%29%5D=20&time_series_datum%5Bdatetime%285i%29%5D=52&time_series_datum%5Bstation_id%5D=1&time_series_datum%5Blc1%5D=15.0&time_series_datum%5Blc2%5D=2.0&time_series_datum%5Blc3%5D=3.0&time_series_datum%5Blc4%5D=4.0&commit=Create+Time+series+datum";
-  String PostData = "csv_line=2016-07-26 01:02:03,'Test Station',1.1,2.0,3.0,4.0";
+  String PostData = "csv_line=2016-07-26 01:02:03,'Test Station',1.1,2.2,3.0,4.0";
   if (www.connected()) {
     Serial.print("Posting...");
     www.println("POST /time_series_data/upload HTTP/1.1");

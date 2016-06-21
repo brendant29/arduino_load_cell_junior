@@ -9,7 +9,7 @@
 const String stationName = "Test Station";
 #define SCALE_COUNT 4
 #define TIME_BETWEEN_READINGS 500 //time between readings, in milliseconds
-#define TIME_BETWEEN_SAVES 5000 //time between saves, in milliseconds
+#define TIME_BETWEEN_SAVES 10000 //time between saves, in milliseconds
 
 int pinsDOUT[SCALE_COUNT] = {7,A0,6,9}; 
 //The pins hooked up to the respective cells' DOUT
@@ -46,8 +46,13 @@ int readsSinceSave = 0;
 /*Adafruit_CC3000 cc3000 = Adafruit_CC3000(ADAFRUIT_CC3000_CS, ADAFRUIT_CC3000_IRQ, ADAFRUIT_CC3000_VBAT,
                                          SPI_CLOCK_DIVIDER); // you can change this clock speed
 */
+/*
 #define WLAN_SSID       "UWNet"           // cannot be longer than 32 characters!
 #define WLAN_PASS       ""
+*/
+#define WLAN_SSID       "GALAXY_S4_4545"           // cannot be longer than 32 characters!
+#define WLAN_PASS       "wljo2151"
+
 // Security can be WLAN_SEC_UNSEC, WLAN_SEC_WEP, WLAN_SEC_WPA or WLAN_SEC_WPA2
 #define WLAN_SECURITY   WLAN_SEC_WPA2
 
@@ -162,8 +167,6 @@ bool uploadString(String mystring) {
     delete cc3000;
     return false;
   }
-  Serial.println("blah");
-  delay(1000);
   Serial.println(F("CC3000 initialized. Connecting to Wifi..."));
   if (!cc3000->connectToAP(WLAN_SSID, WLAN_PASS, WLAN_SECURITY, 1)) {
     Serial.println(F("Wifi connection failed!"));
@@ -245,11 +248,11 @@ bool uploadString(String mystring) {
 */
 
 
-bool postString(String data,Adafruit_CC3000_Client client) {
+bool postString(String data,Adafruit_CC3000_Client www) {
   data = "csv_line="+data;
   char datachars[data.length()+1];
   data.toCharArray(datachars,data.length());
-  if (client.connected()) { 
+  /*if (client.connected()) { 
     client.fastrprintln(F("POST /time_series_data/upload HTTP/1.1")); 
     client.fastrprint(F("Host: ")); 
     client.fastrprintln(WEBSITE);// SERVER ADDRESS HERE TOO
@@ -258,13 +261,45 @@ bool postString(String data,Adafruit_CC3000_Client client) {
     client.println(data.length()); 
     client.println(); 
     client.fastrprint(datachars); 
-  } 
+    Serial.println("posted!");
+  } */
+  String PostData = "csv_line=2016-07-26 01:02:03,'Test Station',1.1,233.0,3.0,4.0";
+  if (www.connected()) {
+    Serial.print("Posting...");
+    www.println("POST /time_series_data/upload HTTP/1.1");
+    www.println("Host: winter-runoff.soils.wisc.edu");
+    www.println("User-Agent: Arduino/1.0");
+    www.println("Connection: close");
+    www.print("Content-Length: ");
+    www.println(PostData.length());
+    www.println();
+    www.println(PostData);
+    Serial.println("posted!");
+  }
+  delay(5000);
+  /*
+  unsigned long lastRead = millis();
+  while (www.connected() && (millis() - lastRead < IDLE_TIMEOUT_MS)) {
+    while (www.available()) {
+      char c = www.read();
+      Serial.print(c);
+      lastRead = millis();
+    }
+  }
+  */
   return true;
 }
 
 Adafruit_CC3000_Client connectToServer(Adafruit_CC3000 *cc3000) {
   cc3000->getHostByName(WEBSITE, &ip);
   Serial.println(ip);
+  cc3000->printIPdotsRev(ip);
+  
+  // Optional: Do a ping test on the website
+  
+  Serial.print(F("\n\rPinging ")); cc3000->printIPdotsRev(ip); Serial.print("...");  
+  int replies = cc3000->ping(ip, 5);
+  Serial.print(replies); Serial.println(F(" replies"));
   Adafruit_CC3000_Client client = cc3000->connectTCP(ip, 80);
   return client;
 }
