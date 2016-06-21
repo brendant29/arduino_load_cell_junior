@@ -73,6 +73,9 @@ void setup() {
     allCells[ii]->tare();
     allCells[ii]->set_scale(calibrations[ii]);
   }  
+  cc3000.begin();
+  delay(5000);
+  wlan_stop();
 }
 
 void loop(){    
@@ -156,12 +159,16 @@ void saveString(String mystring) {
 
 bool uploadString(String mystring) {
   Serial.println(F("attempting upload"));
-  if (!cc3000.begin()) {
+  delay(1000);
+  /*if (!cc3000.begin()) {
     Serial.println(F("Couldn't begin()! Check your wiring?"));
     return false;
-  }
+  }*/
+  wlan_start(0);
+  delay(1000);
   Serial.println("blah");
-  cc3000.reboot();
+  //cc3000.reboot();
+  delay(1000);
   Serial.println(F("CC3000 initialized. Connecting to Wifi..."));
   if (!cc3000.connectToAP(WLAN_SSID, WLAN_PASS, WLAN_SECURITY, 1)) {
     Serial.println(F("Wifi connection failed!"));
@@ -190,7 +197,9 @@ bool uploadString(String mystring) {
   }
   client.close();
   cc3000.disconnect();
+  delay(1000);
   cc3000.stop();
+  delay(1000);
   return true;
 }
 
