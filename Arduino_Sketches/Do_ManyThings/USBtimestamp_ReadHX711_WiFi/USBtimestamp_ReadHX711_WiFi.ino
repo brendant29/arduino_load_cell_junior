@@ -1,3 +1,10 @@
+#include <Fat16.h>
+#include <Fat16Config.h>
+#include <Fat16mainpage.h>
+#include <Fat16util.h>
+#include <SdCard.h>
+#include <SdInfo.h>
+
 #include <Adafruit_CC3000.h>
 #include <Adafruit_CC3000_Server.h>
 #include <ccspi.h>
@@ -10,11 +17,12 @@ const String stationName = "Test Station";
 #define SCALE_COUNT 4
 #define TIME_BETWEEN_READINGS 500 //time between readings, in milliseconds
 #define TIME_BETWEEN_SAVES 10000 //time between saves, in milliseconds
+#define DEBUG 1
 
-int pinsDOUT[SCALE_COUNT] = {7,A0,6,9}; 
+int pinsDOUT[SCALE_COUNT] = {6,A0,A4,9}; 
 //The pins hooked up to the respective cells' DOUT
 
-int pinsSCK[SCALE_COUNT] = {6,A1,A2,A3};
+int pinsSCK[SCALE_COUNT] = {7,A1,A2,A3};
 //The pins hooked up to the respective cells' SCK
 
 float calibrations[SCALE_COUNT] = {-10000, -10000, -10000, -10000};
@@ -22,7 +30,16 @@ float calibrations[SCALE_COUNT] = {-10000, -10000, -10000, -10000};
 
 int gain = 128;
 //the gain can be 128 or 64 on channel A, or 32 on channel B
+
 //=============================================================
+
+#if DEBUG
+  #define DEBUG_PRINT(x) Serial.print(x)
+  #define DEBUG_PRINTLN(x) Serial.println(x)
+#else
+  #define DEBUG_PRINT(x) //
+  #define DEBUG_PRINTLN(x) //
+#endif
 
 const int chipPin = 4;
 #define TIME_HEADER  'T'   // Header tag for serial time sync message
@@ -69,8 +86,10 @@ Adafruit_CC3000_Client client;
 //=====================================================================
 
 void setup() {
-  Serial.begin(9600);
-  
+  #if DEBUG
+    Serial.begin(9600);
+    while(!Serial);
+  #endif
   //setting up the cells
   for(int ii=0; ii<SCALE_COUNT; ii++){
     allCells[ii] = new HX711(pinsDOUT[ii], pinsSCK[ii]);
@@ -81,9 +100,11 @@ void setup() {
 }
 
 void loop(){    
+  #if DEBUG
   if (Serial.available()) {
     processSyncMessage();
   }
+  #endif
 
   //Read each loadcell
   if (millis() - prevRead > TIME_BETWEEN_READINGS) {
@@ -150,48 +171,50 @@ String makeDataString(float *cellReadings,int *readsSinceSave,String stationName
 }
 
 void saveString(String mystring) {
-  Serial.println(mystring);
+  DEBUG_PRINTLN(mystring);
   if (uploadString(mystring)) {
-    Serial.println(F("Upload succeded!"));
+    DEBUG_PRINTLN(F("Upload succeded!"));
   }
   else {
-    Serial.println(F("Upload failed!"));
+    DEBUG_PRINTLN(F("Upload failed!"));
   }
 }
 
 bool uploadString(String mystring) {
-  Serial.println(F("attempting upload"));
+  DEBUG_PRINTLN(F("attempting upload"));
   Adafruit_CC3000 *cc3000 = new Adafruit_CC3000(ADAFRUIT_CC3000_CS, ADAFRUIT_CC3000_IRQ, ADAFRUIT_CC3000_VBAT, SPI_CLOCK_DIVIDER); // you can change this clock speed
   if (!cc3000->begin()) {
-    Serial.println(F("Couldn't begin()! Check your wiring?"));
+    DEBUG_PRINTLN(F("Couldn't begin()! Check your wiring?"));
     delete cc3000;
     return false;
   }
-  Serial.println(F("CC3000 initialized. Connecting to Wifi..."));
+  DEBUG_PRINTLN(F("CC3000 initialized. Connecting to Wifi..."));
   if (!cc3000->connectToAP(WLAN_SSID, WLAN_PASS, WLAN_SECURITY, 1)) {
-    Serial.println(F("Wifi connection failed!"));
+    DEBUG_PRINTLN(F("Wifi connection failed!"));
     cc3000->stop();
     delete cc3000;
     return false;
   }
-  Serial.println(F("Wifi connected"));
+  DEBUG_PRINTLN(F("Wifi connected"));
   while (!cc3000->checkDHCP()) {
     delay(100); // ToDo: Insert a DHCP timeout!
-    Serial.println(F("waiting for DHCP"));
+    DEBUG_PRINTLN(F("waiting for DHCP"));
   }
-  Serial.println(F("connecting to server..."));
+  DEBUG_PRINTLN(F("connecting to server..."));
   client = connectToServer(cc3000);
   if (!client.connected()) {
-    Serial.println(F("Server connection failed!"));
+    DEBUG_PRINTLN(F("Server connection failed!"));
     cc3000->disconnect();
+    delay(1000);
     cc3000->stop();
     delete cc3000;
     return false;
   }
   if (!postString(mystring, client)) {
-    Serial.println(F("Post failed!"));
+    DEBUG_PRINTLN(F("Post failed!"));
     client.close();
     cc3000->disconnect();
+    delay(1000);
     cc3000->stop();
     delete cc3000;
     return false;
@@ -200,7 +223,6 @@ bool uploadString(String mystring) {
   cc3000->disconnect();
   delay(1000);
   cc3000->stop();
-  delay(1000);
   delete cc3000;
   return true;
 }
@@ -248,35 +270,23 @@ bool uploadString(String mystring) {
 */
 
 
-bool postString(String data,Adafruit_CC3000_Client www) {
-  data = "csv_line="+data;
-  char datachars[data.length()+1];
-  data.toCharArray(datachars,data.length());
-  /*if (client.connected()) { 
-    client.fastrprintln(F("POST /time_series_data/upload HTTP/1.1")); 
-    client.fastrprint(F("Host: ")); 
-    client.fastrprintln(WEBSITE);// SERVER ADDRESS HERE TOO
-    client.fastrprintln(F("Content-Type: application/x-www-form-urlencoded")); 
-    client.fastrprint(F("Content-Length: ")); 
-    client.println(data.length()); 
-    client.println(); 
-    client.fastrprint(datachars); 
-    Serial.println("posted!");
-  } */
-  String PostData = "csv_line=2016-07-26 01:02:03,'Test Station',1.1,233.0,3.0,4.0";
-  if (www.connected()) {
-    Serial.print("Posting...");
-    www.println("POST /time_series_data/upload HTTP/1.1");
-    www.println("Host: winter-runoff.soils.wisc.edu");
-    www.println("User-Agent: Arduino/1.0");
-    www.println("Connection: close");
-    www.print("Content-Length: ");
-    www.println(PostData.length());
-    www.println();
-    www.println(PostData);
-    Serial.println("posted!");
+bool postString(String data,Adafruit_CC3000_Client client) {
+  String PostData = "csv_line=" + data;
+  if (client.connected()) {
+    DEBUG_PRINT(F("Posting..."));
+    client.fastrprintln(F("POST /time_series_data/upload HTTP/1.1"));
+    client.fastrprint(F("Host: "));
+    client.fastrprintln(F(WEBSITE));
+    client.fastrprintln(F("User-Agent: Arduino/1.0"));
+    client.fastrprintln(F("Connection: close"));
+    client.fastrprint(F("Content-Length: "));
+    client.println(PostData.length());
+    client.println();
+    client.println(PostData);
+    DEBUG_PRINTLN(PostData);
+    DEBUG_PRINTLN(F("posted!"));
   }
-  delay(5000);
+  delay(1000);
   /*
   unsigned long lastRead = millis();
   while (www.connected() && (millis() - lastRead < IDLE_TIMEOUT_MS)) {
@@ -292,18 +302,19 @@ bool postString(String data,Adafruit_CC3000_Client www) {
 
 Adafruit_CC3000_Client connectToServer(Adafruit_CC3000 *cc3000) {
   cc3000->getHostByName(WEBSITE, &ip);
-  Serial.println(ip);
+  DEBUG_PRINTLN(ip);
   cc3000->printIPdotsRev(ip);
   
   // Optional: Do a ping test on the website
   
-  Serial.print(F("\n\rPinging ")); cc3000->printIPdotsRev(ip); Serial.print("...");  
+  DEBUG_PRINT(F("\n\rPinging ")); cc3000->printIPdotsRev(ip); DEBUG_PRINT("...");  
   int replies = cc3000->ping(ip, 5);
-  Serial.print(replies); Serial.println(F(" replies"));
+  DEBUG_PRINT(replies); DEBUG_PRINTLN(F(" replies"));
   Adafruit_CC3000_Client client = cc3000->connectTCP(ip, 80);
   return client;
 }
 
+#if DEBUG
 void processSyncMessage() {
   unsigned long pctime;
   const unsigned long DEFAULT_TIME = 1357041600; // Jan 1 2013
@@ -311,7 +322,7 @@ void processSyncMessage() {
   if(Serial.find(TIME_HEADER)) {
     pctime = Serial.parseInt();
     if( pctime >= DEFAULT_TIME) { // check the integer is a valid time (greater than Jan 1 2013)
-//      setTime(pctime); // Sync Arduino clock to the time received on the serial port
+      setTime(pctime); // Sync Arduino clock to the time received on the serial port
     }
   }
 }
@@ -321,5 +332,6 @@ time_t requestSync()
   //Serial.write(TIME_REQUEST);  
   return 0; // the time will be sent later in response to serial mesg
 }
+#endif
 
 
