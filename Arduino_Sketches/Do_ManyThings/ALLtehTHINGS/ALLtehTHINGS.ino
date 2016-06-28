@@ -2,6 +2,9 @@
 #include <Adafruit_CC3000_Server.h>
 #include <ccspi.h>
 
+#include <Fat16.h>
+#include <Fat16util.h>
+
 #include <TimeLib.h>
 #include <HX711.h>
 
@@ -11,6 +14,7 @@
 
 //===============Change values as necessary===================
 const String stationName = "Test Station";
+const char *fileName[] = {"DATALOG.txt"};
 const int SCALE_COUNT = 4;
 const int TIME_BETWEEN_READINGS = 1000; //time between readings, in milliseconds
 const int TIME_BETWEEN_SAVES = 10000; //time between saves, in milliseconds
@@ -50,6 +54,8 @@ unsigned long prevSave = 0;
 unsigned long prevUpload = 0;
 float cellReadings[SCALE_COUNT];
 int readsSinceSave = 0;
+Fat16 dataFile;
+SdCard myCard;
 
 // These are the interrupt and control pins
 #define ADAFRUIT_CC3000_IRQ   3  // MUST be an interrupt pin!
@@ -93,7 +99,9 @@ void setup() {
     Serial.begin(9600);
     while(!Serial);
   #endif
-    
+  
+  dataFile = startSDfile(chipPin, fileName);
+  
   //setting up the cells
   for(int ii=0; ii<SCALE_COUNT; ii++){
     allCells[ii] = new HX711(pinsDOUT[ii], pinsSCK[ii]);
@@ -210,6 +218,10 @@ void saveString(String mystring) {
   }
   else {
     DEBUG_PRINTLN(F("Upload failed!"));
+  }
+  // if the file is available, write to it:
+  if (dataFile.isOpen()) {
+    dataFile.println(mystring);
   }
 }
 
@@ -335,6 +347,16 @@ time_t requestSync()
   return 0; // the time will be sent later in response to serial mesg
 }
 #endif*/
+
+Fat16 startSDfile(uint8_t chipSelect, const char *filePath[]) {
+  if (!myCard.init(true, chipSelect)) {
+    DEBUG_PRINTLN(F("No card!"));
+  }
+  Fat16 newFile;
+  Fat16::init(&myCard);
+  newFile.open(*filePath, O_CREAT | O_RDWR | O_APPEND);
+  return newFile;
+}
 
 // Define watchdog timer interrupt.
 ISR(WDT_vect)
