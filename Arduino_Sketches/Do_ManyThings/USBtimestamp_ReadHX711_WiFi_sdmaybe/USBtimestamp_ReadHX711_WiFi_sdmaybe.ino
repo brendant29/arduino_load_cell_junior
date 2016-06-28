@@ -1,14 +1,16 @@
 #include <Adafruit_CC3000.h>
 #include <Adafruit_CC3000_Server.h>
 #include <ccspi.h>
-
+#include <Fat16.h>
+#include <Fat16util.h>
 #include <TimeLib.h>
 #include <HX711.h>
 
 //===============Change values as necessary===================
 const String stationName = "Test Station";
+const char *fileName[] = {"DATALOG.txt"};
 #define SCALE_COUNT 4
-#define TIME_BETWEEN_READINGS 1000 //time between readings, in milliseconds
+#define TIME_BETWEEN_READINGS 500 //time between readings, in milliseconds
 #define TIME_BETWEEN_SAVES 10000 //time between saves, in milliseconds
 #define DEBUG 0 //whether or not to do things over the serial port
 
@@ -46,6 +48,8 @@ unsigned long prevSave = 0;
 unsigned long prevUpload = 0;
 float cellReadings[SCALE_COUNT];
 int readsSinceSave = 0;
+Fat16 dataFile;
+SdCard myCard;
 
 // These are the interrupt and control pins
 #define ADAFRUIT_CC3000_IRQ   3  // MUST be an interrupt pin!
@@ -81,13 +85,14 @@ void setup() {
     while(!Serial);
   #endif
   
+  dataFile = startSDfile(chipPin, fileName);
+  
   //setting up the cells
   for(int ii=0; ii<SCALE_COUNT; ii++){
     allCells[ii] = new HX711(pinsDOUT[ii], pinsSCK[ii]);
     allCells[ii]->set_gain(gain);
     allCells[ii]->tare();
     allCells[ii]->set_scale(calibrations[ii]);
-    allCells[ii]->power_down();
     cellReadings[ii] = 0;
   }  
   
@@ -105,21 +110,16 @@ void loop(){
   //Read each loadcell
   if (millis() - prevRead > TIME_BETWEEN_READINGS) {
     for (int ii=0; ii<SCALE_COUNT; ii++) {
-      allCells[ii]->power_up();
       cellReadings[ii] += allCells[ii]->get_units();
-      allCells[ii]->power_down();
-      DEBUG_PRINT((cellReadings[ii]/(readsSinceSave+1)));
-      DEBUG_PRINT(", ");
     }
     readsSinceSave++;
-    DEBUG_PRINTLN();
     prevRead = millis();
   }
 
   //average the readings and save
   if (millis() - prevSave > TIME_BETWEEN_SAVES) {
-    saveString(makeDataString(cellReadings, &readsSinceSave, stationName));
     prevSave = millis();
+    saveString(makeDataString(cellReadings, &readsSinceSave, stationName));
   } 
 }
 
@@ -182,6 +182,10 @@ void saveString(String mystring) {
   }
   else {
     DEBUG_PRINTLN(F("Upload failed!"));
+  }
+  // if the file is available, write to it:
+  if (dataFile.isOpen()) {
+    dataFile.println(mystring);
   }
 }
 
@@ -250,12 +254,12 @@ bool postString(String data,Adafruit_CC3000_Client client) {
     //can use print instead of fastrprint 
     //if program space is at a premium
     
-    client.fastrprintln(F("POST /time_series_data/upload HTTP/1.1"));
-    client.fastrprint(F("Host: "));
-    client.fastrprintln(F(WEBSITE));
-    client.fastrprintln(F("User-Agent: Arduino/1.0"));
-    client.fastrprintln(F("Connection: close"));
-    client.fastrprint(F("Content-Length: "));
+    client.println(F("POST /time_series_data/upload HTTP/1.1"));
+    client.print(F("Host: "));
+    client.println(F(WEBSITE));
+    client.println(F("User-Agent: Arduino/1.0"));
+    client.println(F("Connection: close"));
+    client.print(F("Content-Length: "));
     client.println(PostData.length());
     client.println();
     client.println(PostData);
@@ -311,4 +315,13 @@ time_t requestSync()
 }
 #endif
 
+Fat16 startSDfile(uint8_t chipSelect, const char *filePath[]) {
+  if (!myCard.init(true, chipSelect)) {
+    DEBUG_PRINTLN(F("No card!"));
+  }
+  Fat16 newFile;
+  Fat16::init(&myCard);
+  newFile.open(*filePath, O_CREAT | O_RDWR | O_APPEND);
+  return newFile;
+}
 

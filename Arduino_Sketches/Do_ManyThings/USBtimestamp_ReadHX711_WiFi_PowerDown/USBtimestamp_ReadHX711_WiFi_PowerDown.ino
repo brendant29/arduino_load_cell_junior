@@ -5,6 +5,10 @@
 #include <TimeLib.h>
 #include <HX711.h>
 
+#include <avr/sleep.h>
+#include <avr/power.h>
+#include <avr/wdt.h>
+
 //===============Change values as necessary===================
 const String stationName = "Test Station";
 #define SCALE_COUNT 4
@@ -72,6 +76,15 @@ int readsSinceSave = 0;
 uint32_t ip;
 Adafruit_CC3000_Client client;
 
+// Data logging configuration.
+#define LOGGING_FREQ_SECONDS   24       // Seconds to wait before a new sensor reading is logged.
+
+#define MAX_SLEEP_ITERATIONS   LOGGING_FREQ_SECONDS / 8  // Number of times to sleep (for 8 seconds)
+
+// Internal state used by the sketch.
+int sleepIterations = 0;
+volatile bool watchdogActivated = false;
+
 //=====================================================================
 
 void setup() {
@@ -90,20 +103,43 @@ void setup() {
     allCells[ii]->power_down();
     cellReadings[ii] = 0;
   }  
+  noInterrupts();
   
+  // Set the watchdog reset bit in the MCU status register to 0.
+  MCUSR &= ~(1<<WDRF);
+  
+  // Set WDCE and WDE bits in the watchdog control register.
+  WDTCSR |= (1<<WDCE) | (1<<WDE);
+
+  // Set watchdog clock prescaler bits to a value of 8 seconds.
+  WDTCSR = (1<<WDP0) | (1<<WDP3);
+  
+  // Enable watchdog as interrupt only (no reset).
+  WDTCSR |= (1<<WDIE);
+  
+  // Enable interrupts again.
+  interrupts();
+  
+  DEBUG_PRINTLN(F("Setup complete."));
+  delay(100);
 }
 
 void loop(){    
+  if (watchdogActivated)
+  {
+    watchdogActivated = false;
+    // Increase the count of sleep iterations and take a sensor
+    // reading once the max number of iterations has been hit.
+    sleepIterations += 1;
+    #if DEBUG
+    //If anything has come in over the serial port, assume it's a time sync message.
+    if (Serial.available()) {
+      processSyncMessage();
+    }
+    #endif
   
-  #if DEBUG
-  //If anything has come in over the serial port, assume it's a time sync message.
-  if (Serial.available()) {
-    processSyncMessage();
-  }
-  #endif
-
-  //Read each loadcell
-  if (millis() - prevRead > TIME_BETWEEN_READINGS) {
+    //Read each loadcell
+  
     for (int ii=0; ii<SCALE_COUNT; ii++) {
       allCells[ii]->power_up();
       cellReadings[ii] += allCells[ii]->get_units();
@@ -113,14 +149,16 @@ void loop(){
     }
     readsSinceSave++;
     DEBUG_PRINTLN();
-    prevRead = millis();
-  }
 
-  //average the readings and save
-  if (millis() - prevSave > TIME_BETWEEN_SAVES) {
-    saveString(makeDataString(cellReadings, &readsSinceSave, stationName));
-    prevSave = millis();
-  } 
+    //average the readings and save
+    if (sleepIterations >= MAX_SLEEP_ITERATIONS) {
+      // Reset the number of sleep iterations.
+      sleepIterations = 0;
+      saveString(makeDataString(cellReadings, &readsSinceSave, stationName));
+    } 
+    delay(100);
+  }
+  sleep();
 }
 
 //=============================================
@@ -312,3 +350,31 @@ time_t requestSync()
 #endif
 
 
+// Define watchdog timer interrupt.
+ISR(WDT_vect)
+{
+  // Set the watchdog activated flag.
+  // Note that you shouldn't do much work inside an interrupt handler.
+  watchdogActivated = true;
+}
+
+// Put the Arduino to sleep.
+void sleep()
+{
+  // Set sleep to full power down.  Only external interrupts or 
+  // the watchdog timer can wake the CPU!
+  set_sleep_mode(SLEEP_MODE_PWR_DOWN);
+
+  // Turn off the ADC while asleep.
+  power_adc_disable();
+
+  // Enable sleep and enter sleep mode.
+  sleep_mode();
+
+  // CPU is now asleep and program execution completely halts!
+  // Once awake, execution will resume at this point.
+  
+  // When awake, disable sleep mode and turn on all devices.
+  sleep_disable();
+  power_all_enable();
+}
