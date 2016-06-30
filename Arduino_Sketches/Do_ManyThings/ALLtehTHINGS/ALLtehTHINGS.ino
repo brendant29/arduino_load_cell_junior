@@ -46,7 +46,7 @@ int gain = 128;
 #endif
 
 const int chipPin = 4;
-#define TIME_HEADER  'T'   // Header tag for serial time sync message
+#define TIME_HEADER  "OK::"   // Header tag for serial time sync message
 #define TIME_REQUEST  7    // ASCII bell character requests a time sync message 
 
 unsigned long prevRead = 0;
@@ -54,8 +54,8 @@ unsigned long prevSave = 0;
 unsigned long prevUpload = 0;
 float cellReadings[SCALE_COUNT];
 int readsSinceSave = 0;
-Fat16 dataFile;
-SdCard myCard;
+//\/\/\/\Fat16 dataFile;
+//\/\/\/\SdCard myCard;
 
 // These are the interrupt and control pins
 #define ADAFRUIT_CC3000_IRQ   3  // MUST be an interrupt pin!
@@ -100,7 +100,7 @@ void setup() {
     while(!Serial);
   #endif
   
-  dataFile = startSDfile(chipPin, fileName);
+  //\/\/\/\dataFile = startSDfile(chipPin, fileName);
   
   //setting up the cells
   for(int ii=0; ii<SCALE_COUNT; ii++){
@@ -220,9 +220,9 @@ void saveString(String mystring) {
     DEBUG_PRINTLN(F("Upload failed!"));
   }
   // if the file is available, write to it:
-  if (dataFile.isOpen()) {
-    dataFile.println(mystring);
-  }
+  //\/\/\/\if (dataFile.isOpen()) {
+  //  dataFile.println(mystring);
+  //\/\/\/\}
 }
 
 
@@ -300,6 +300,7 @@ bool postString(String data,Adafruit_CC3000_Client client) {
     DEBUG_PRINTLN(F("posted!"));
   }
   delay(1000); //time enough to finish upload
+  if (client.available()) processSyncMessage(client);
 
   /*
   //a bit of code to read a response from the server 
@@ -328,27 +329,19 @@ Adafruit_CC3000_Client connectToServer(Adafruit_CC3000 *cc3000) {
   return client;
 }
 
-/*#if DEBUG
-void processSyncMessage() {
-  unsigned long pctime;
+void processSyncMessage(Adafruit_CC3000_Client client) {
+  unsigned long servertime;
   const unsigned long DEFAULT_TIME = 1357041600; // Jan 1 2013
 
-  if(Serial.find(TIME_HEADER)) {
-    pctime = Serial.parseInt();
-    if( pctime >= DEFAULT_TIME) { // check the integer is a valid time (greater than Jan 1 2013)
-      setTime(pctime); // Sync Arduino clock to the time received on the serial port
+  if(client.find(TIME_HEADER)) {
+    servertime = client.parseInt();
+    if( servertime >= DEFAULT_TIME) { // check the integer is a valid time (greater than Jan 1 2013)
+      setTime(servertime); // Sync Arduino clock to the time received on the serial port
     }
   }
 }
 
-time_t requestSync()
-{
-  //Serial.write(TIME_REQUEST);  
-  return 0; // the time will be sent later in response to serial mesg
-}
-#endif*/
-
-Fat16 startSDfile(uint8_t chipSelect, const char *filePath[]) {
+/*/\/\/\/\Fat16 startSDfile(uint8_t chipSelect, const char *filePath[]) {
   if (!myCard.init(true, chipSelect)) {
     DEBUG_PRINTLN(F("No card!"));
   }
@@ -356,7 +349,7 @@ Fat16 startSDfile(uint8_t chipSelect, const char *filePath[]) {
   Fat16::init(&myCard);
   newFile.open(*filePath, O_CREAT | O_RDWR | O_APPEND);
   return newFile;
-}
+}*/
 
 // Define watchdog timer interrupt.
 ISR(WDT_vect)
