@@ -18,7 +18,7 @@ const char *fileName[] = {"DATALOG.txt"};
 const int SCALE_COUNT = 4;
 const int TIME_BETWEEN_READINGS = 1000; //time between readings, in milliseconds
 const int TIME_BETWEEN_SAVES = 10000; //time between saves, in milliseconds
-#define DEBUG 1 //whether or not to do things over the serial port
+#define DEBUG 0 //whether or not to do things over the serial port
 
 int pinsDOUT[SCALE_COUNT] = {6,8,A0,A2}; 
 //The pins hooked up to the respective cells' DOUT
