@@ -12,12 +12,13 @@ const char *fileName[] = {"DATALOG.txt"};
 #define SCALE_COUNT 4
 #define TIME_BETWEEN_READINGS 500 //time between readings, in milliseconds
 #define TIME_BETWEEN_SAVES 10000 //time between saves, in milliseconds
+
 #define DEBUG 1 //whether or not to do things over the serial port
 
-int pinsDOUT[SCALE_COUNT] = {6,8,A0,A2}; 
+byte pinsDOUT[SCALE_COUNT] = {6,8,A0,A2}; 
 //The pins hooked up to the respective cells' DOUT
 
-int pinsSCK[SCALE_COUNT] = {7,9,A1,A3};
+byte pinsSCK[SCALE_COUNT] = {7,9,A1,A3};
 //The pins hooked up to the respective cells' SCK
 
 float calibrations[SCALE_COUNT] = {-10000, -10000, -10000, -10000};
@@ -26,7 +27,7 @@ float calibrations[SCALE_COUNT] = {-10000, -10000, -10000, -10000};
 HX711 *allCells[SCALE_COUNT] = {NULL, NULL, NULL, NULL}; 
 //The number of NULLs should be the same as the number of loadcells.
 
-int gain = 128;
+byte gain = 128;
 //the gain can be 128 or 64 on channel A, or 32 on channel B
 
 //=============================================================
@@ -39,7 +40,7 @@ int gain = 128;
   #define DEBUG_PRINTLN(x) 
 #endif
 
-const int chipPin = 4;
+#define CHIP_PIN 4
 #define TIME_HEADER  'T'   // Header tag for serial time sync message
 #define TIME_REQUEST  7    // ASCII bell character requests a time sync message 
 
@@ -47,9 +48,8 @@ unsigned long prevRead = 0;
 unsigned long prevSave = 0;
 unsigned long prevUpload = 0;
 float cellReadings[SCALE_COUNT];
-int readsSinceSave = 0;
-Fat16 dataFile;
-SdCard myCard;
+byte readsSinceSave = 0;
+
 
 // These are the interrupt and control pins
 #define ADAFRUIT_CC3000_IRQ   3  // MUST be an interrupt pin!
@@ -74,7 +74,6 @@ SdCard myCard;
 #define WEBSITE      "winter-runoff.soils.wisc.edu"
 
 uint32_t ip;
-Adafruit_CC3000_Client client;
 
 //=====================================================================
 
@@ -85,10 +84,9 @@ void setup() {
     while(!Serial);
   #endif
   
-  dataFile = startSDfile(chipPin, fileName);
   
   //setting up the cells
-  for(int ii=0; ii<SCALE_COUNT; ii++){
+  for(byte ii=0; ii<SCALE_COUNT; ii++){
     allCells[ii] = new HX711(pinsDOUT[ii], pinsSCK[ii]);
     allCells[ii]->set_gain(gain);
     allCells[ii]->tare();
@@ -109,7 +107,7 @@ void loop(){
 
   //Read each loadcell
   if (millis() - prevRead > TIME_BETWEEN_READINGS) {
-    for (int ii=0; ii<SCALE_COUNT; ii++) {
+    for (byte ii=0; ii<SCALE_COUNT; ii++) {
       cellReadings[ii] += allCells[ii]->get_units();
     }
     readsSinceSave++;
@@ -148,7 +146,7 @@ String timeDisplay(time_t t) {
 }
 
 // utility function for digital clock display: prints preceding colon and leading 0
-String stringDigits(int digits){
+String stringDigits(byte digits){
   String strDigits = "";
   if(digits < 10) {
     strDigits += '0';
@@ -158,14 +156,15 @@ String stringDigits(int digits){
 }
 
 //Assembles a datum for recording
-String makeDataString(float *cellReadings,int *readsSinceSave,String stationName) {
-  String dataString = "";
+String makeDataString(float *cellReadings,byte *readsSinceSave,String stationName) {
+  static String dataString;
+  dataString = "";
   time_t t = now();
   dataString += dateDisplay(t);
   dataString += " ";
   dataString += timeDisplay(t);
   dataString += ",\'"+stationName+"\'"; // insert real station name here
-  for (int ii=0; ii<SCALE_COUNT; ii++) {
+  for (byte ii=0; ii<SCALE_COUNT; ii++) {
     dataString += ",";
     dataString += cellReadings[ii] / *readsSinceSave;
     cellReadings[ii] = 0;
@@ -177,16 +176,14 @@ String makeDataString(float *cellReadings,int *readsSinceSave,String stationName
 //Does what is needed to save a datum
 void saveString(String mystring) {
   DEBUG_PRINTLN(mystring);
-  if (uploadString(mystring)) {
+  // if the file is available, write to it:
+  saveToSD(mystring,fileName);
+  /*if (uploadString(mystring)) {
     DEBUG_PRINTLN(F("Upload succeded!"));
   }
   else {
     DEBUG_PRINTLN(F("Upload failed!"));
-  }
-  // if the file is available, write to it:
-  if (dataFile.isOpen()) {
-    dataFile.println(mystring);
-  }
+  }*/
 }
 
 
@@ -201,48 +198,43 @@ void saveString(String mystring) {
 
 bool uploadString(String mystring) {
   DEBUG_PRINTLN(F("attempting upload"));
-  Adafruit_CC3000 *cc3000 = new Adafruit_CC3000(ADAFRUIT_CC3000_CS, ADAFRUIT_CC3000_IRQ, ADAFRUIT_CC3000_VBAT, SPI_CLOCK_DIVIDER); // you can change this clock speed
-  if (!cc3000->begin()) {
+  Adafruit_CC3000 cc3000 = Adafruit_CC3000(ADAFRUIT_CC3000_CS, ADAFRUIT_CC3000_IRQ, ADAFRUIT_CC3000_VBAT, SPI_CLOCK_DIVIDER); // you can change this clock speed
+  if (!cc3000.begin()) {
     DEBUG_PRINTLN(F("Couldn't begin()! Check your wiring?"));
-    delete cc3000;
     return false;
   }
   DEBUG_PRINTLN(F("CC3000 initialized. Connecting to Wifi..."));
-  if (!cc3000->connectToAP(WLAN_SSID, WLAN_PASS, WLAN_SECURITY, 1)) {
+  if (!cc3000.connectToAP(WLAN_SSID, WLAN_PASS, WLAN_SECURITY, 1)) {
     DEBUG_PRINTLN(F("Wifi connection failed!"));
-    cc3000->stop();
-    delete cc3000;
+    cc3000.stop();
     return false;
   }
   DEBUG_PRINTLN(F("Wifi connected"));
-  while (!cc3000->checkDHCP()) {
+  while (!cc3000.checkDHCP()) {
     delay(100); // ToDo: Insert a DHCP timeout!
     DEBUG_PRINTLN(F("waiting for DHCP"));
   }
   DEBUG_PRINTLN(F("connecting to server..."));
-  client = connectToServer(cc3000);
+  Adafruit_CC3000_Client client = connectToServer(&cc3000);
   if (!client.connected()) {
     DEBUG_PRINTLN(F("Server connection failed!"));
-    cc3000->disconnect();
+    cc3000.disconnect();
     delay(1000);
-    cc3000->stop();
-    delete cc3000;
+    cc3000.stop();
     return false;
   }
   if (!postString(mystring, client)) {
     DEBUG_PRINTLN(F("Post failed!"));
     client.close();
-    cc3000->disconnect();
+    cc3000.disconnect();
     delay(1000);
-    cc3000->stop();
-    delete cc3000;
+    cc3000.stop();
     return false;
   }
   client.close();
-  cc3000->disconnect();
+  cc3000.disconnect();
   delay(1000);
-  cc3000->stop();
-  delete cc3000;
+  cc3000.stop();
   return true;
 }
 
@@ -315,13 +307,16 @@ time_t requestSync()
 }
 #endif
 
-Fat16 startSDfile(uint8_t chipSelect, const char *filePath[]) {
-  if (!myCard.init(true, chipSelect)) {
+bool saveToSD(String myString, const char *filePath[]) {
+  SdCard myCard;
+  if (!myCard.init(true, CHIP_PIN)) {
     DEBUG_PRINTLN(F("No card!"));
+    return false;
   }
   Fat16 newFile;
   Fat16::init(&myCard);
   newFile.open(*filePath, O_CREAT | O_RDWR | O_APPEND);
-  return newFile;
+  newFile.println(myString);
+  newFile.close();
 }
 
