@@ -7,8 +7,8 @@
 #include <HX711.h>
 
 //===============Change values as necessary===================
-const String stationName = "Test Station";
-const char *fileName[] = {"DATALOG.txt"};
+const char stationName[] = "Test Station";
+const char fileName[] = "DATALOG.txt";
 #define SCALE_COUNT 4
 #define TIME_BETWEEN_READINGS 500 //time between readings, in milliseconds
 #define TIME_BETWEEN_SAVES 10000 //time between saves, in milliseconds
@@ -60,8 +60,8 @@ byte readsSinceSave = 0;
 // On an UNO, SCK = 13, MISO = 12, and MOSI = 11
 
 //The name and password of the Wifi acces point:
-#define WLAN_SSID       "GALAXY_S4_4545"  // cannot be longer than 32 characters!
-#define WLAN_PASS       "wljo2151"
+const char WLAN_SSID[] = "GALAXY_S4_4545";  // cannot be longer than 32 characters!
+const char WLAN_PASS[] = "wljo2151";
 
 // Security can be WLAN_SEC_UNSEC, WLAN_SEC_WEP, WLAN_SEC_WPA or WLAN_SEC_WPA2
 #define WLAN_SECURITY   WLAN_SEC_WPA2
@@ -71,7 +71,7 @@ byte readsSinceSave = 0;
                                    // you're accessing is quick to respond, you can reduce this value.
 
 // What page to post to!
-#define WEBSITE      "winter-runoff.soils.wisc.edu"
+const char WEBSITE[] = "winter-runoff.soils.wisc.edu";
 
 uint32_t ip;
 
@@ -92,8 +92,7 @@ void setup() {
     allCells[ii]->tare();
     allCells[ii]->set_scale(calibrations[ii]);
     cellReadings[ii] = 0;
-  }  
-  
+  }
 }
 
 void loop(){    
@@ -117,7 +116,9 @@ void loop(){
   //average the readings and save
   if (millis() - prevSave > TIME_BETWEEN_SAVES) {
     prevSave = millis();
-    saveString(makeDataString(cellReadings, &readsSinceSave, stationName));
+    char dataString[100];
+    makeDataString(cellReadings, &readsSinceSave, stationName, dataString);
+    saveString(dataString);
   } 
 }
 
@@ -126,51 +127,46 @@ void loop(){
 //=============================================
 
 //Given seconds since epoch, return the current date
-String dateDisplay(time_t t) {
-  String date = String(year(t));
-  date += "-";
-  date += String(month(t));
-  date += "-";
-  date += String(day(t));
-  return date;
+char* dateDisplay(time_t t,char myString[]) {
+  numList(year(t), "-", myString);
+  numList(month(t), "-", myString);
+  numList(day(t), "", myString);
+  return myString;
 }
 
 //Given seconds since epoch, return the current time
-String timeDisplay(time_t t) {
-  String timer = stringDigits(hour(t));
-  timer += ":";
-  timer += stringDigits(minute(t));
-  timer += ":";
-  timer += stringDigits(second(t));
-  return timer;
+char* timeDisplay(time_t t,char myString[]) {
+  numList(hour(t), ":", myString);
+  numList(minute(t), ":", myString);
+  numList(hour(t), "", myString);
+  return myString;
 }
 
-// utility function for digital clock display: prints preceding colon and leading 0
-String stringDigits(byte digits){
-  String strDigits = "";
-  if(digits < 10) {
-    strDigits += '0';
+// utility function for listing numbers, prints leading 0 and ending separator.
+char* numList(float digits, const char *separator, char myString[]){
+  if(digits < 10 && digits > 0) {
+    strcat(myString,"0");
   }
-  strDigits += String(digits);
-  return strDigits;
+  itoa(digits, myString+strlen(myString), 10);
+  strcat(myString,separator);
 }
 
 //Assembles a datum for recording
-String makeDataString(float *cellReadings,byte *readsSinceSave,String stationName) {
-  static String dataString;
-  dataString = "";
+char* makeDataString(float *cellReadings,byte *readsSinceSave,const char stationName[],char myString[]) {
+  strcpy(myString,"");
   time_t t = now();
-  dataString += dateDisplay(t);
-  dataString += " ";
-  dataString += timeDisplay(t);
-  dataString += ",\'"+stationName+"\'"; // insert real station name here
+  dateDisplay(t,myString);
+  strcat(myString," ");
+  timeDisplay(t,myString);
+  strcat(myString,",\'");
+  strcat(myString,stationName);
+  strcat(myString,"\',");
   for (byte ii=0; ii<SCALE_COUNT; ii++) {
-    dataString += ",";
-    dataString += cellReadings[ii] / *readsSinceSave;
+    numList((cellReadings[ii] / *readsSinceSave),",",myString);
     cellReadings[ii] = 0;
   }
   *readsSinceSave = 0;
-  return dataString;
+  return myString;
 }
 
 //Does what is needed to save a datum
@@ -248,7 +244,7 @@ bool postString(String data,Adafruit_CC3000_Client client) {
     
     client.println(F("POST /time_series_data/upload HTTP/1.1"));
     client.print(F("Host: "));
-    client.println(F(WEBSITE));
+    client.println(WEBSITE);
     client.println(F("User-Agent: Arduino/1.0"));
     client.println(F("Connection: close"));
     client.print(F("Content-Length: "));
@@ -307,7 +303,7 @@ time_t requestSync()
 }
 #endif
 
-bool saveToSD(String myString, const char *filePath[]) {
+bool saveToSD(String myString, const char filePath[]) {
   SdCard myCard;
   if (!myCard.init(true, CHIP_PIN)) {
     DEBUG_PRINTLN(F("No card!"));
@@ -315,7 +311,7 @@ bool saveToSD(String myString, const char *filePath[]) {
   }
   Fat16 newFile;
   Fat16::init(&myCard);
-  newFile.open(*filePath, O_CREAT | O_RDWR | O_APPEND);
+  newFile.open(filePath, O_CREAT | O_RDWR | O_APPEND);
   newFile.println(myString);
   newFile.close();
 }
