@@ -9,7 +9,7 @@
 const char stationName[] = "Test Station";
 const char fileName[] = "DATALOG.txt";
 #define SCALE_COUNT 4
-#define TIME_BETWEEN_READINGS 500 //time between readings, in milliseconds
+#define TIME_BETWEEN_READINGS 50 //time between readings, in milliseconds
 #define TIME_BETWEEN_SAVES 10000 //time between saves, in milliseconds
 
 #define DEBUG 1 //whether or not to do things over the serial port
@@ -20,10 +20,10 @@ byte pinsDOUT[SCALE_COUNT] = {8,8,8,8};
 byte pinsSCK[SCALE_COUNT] = {9,9,9,9};
 //The pins hooked up to the respective cells' SCK
 
-float calibrations[SCALE_COUNT] = {-10000, -10000, -10000, -10000};
+float calibrations[SCALE_COUNT] = {-10000, -10000, -10000,1000};
 //The calibration factors for the cells
 
-HX711 *allCells[SCALE_COUNT] = {NULL, NULL, NULL, NULL}; 
+HX711 *allCells[SCALE_COUNT] = {NULL, NULL, NULL,NULL}; 
 //The number of NULLs should be the same as the number of loadcells.
 
 byte gain = 128;
@@ -105,6 +105,7 @@ void loop(){
 
   //Read each loadcell
   if (millis() - prevRead > TIME_BETWEEN_READINGS) {
+    prevRead = millis();
     //DEBUG_PRINT("reading");
     for (byte ii=0; ii<SCALE_COUNT; ii++) {
       DEBUG_PRINT(ii);
@@ -112,7 +113,6 @@ void loop(){
       cellReadings[ii] += allCells[ii]->get_units();
     }
     readsSinceSave++;
-    prevRead = millis();
     DEBUG_PRINTLN(F("done"));
   }
 
@@ -177,12 +177,12 @@ void saveString(char mystring[]) {
   DEBUG_PRINTLN(mystring);
   // if the file is available, write to it:
   saveToSD(mystring,fileName);
-  if (uploadString(mystring)) {
-    DEBUG_PRINTLN(F("Upload succeded!"));
-  }
-  else {
-    DEBUG_PRINTLN(F("upload failed!"));
-  }
+  //if (uploadString(mystring)) {
+  //  DEBUG_PRINTLN(F("Upload succeded!"));
+  //}
+  //else {
+  //  DEBUG_PRINTLN(F("upload failed!"));
+  //}
 }
 
 
