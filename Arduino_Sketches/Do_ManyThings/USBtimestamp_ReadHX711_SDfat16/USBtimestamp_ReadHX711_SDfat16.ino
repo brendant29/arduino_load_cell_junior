@@ -5,7 +5,6 @@
 #include <Fat16util.h>
 #include <TimeLib.h>
 #include <HX711.h>
-
 //===============Change values as necessary===================
 const char stationName[] = "Test Station";
 const char fileName[] = "DATALOG.txt";
@@ -15,10 +14,10 @@ const char fileName[] = "DATALOG.txt";
 
 #define DEBUG 1 //whether or not to do things over the serial port
 
-byte pinsDOUT[SCALE_COUNT] = {6,8,A0,A2}; 
+byte pinsDOUT[SCALE_COUNT] = {8,8,8,8}; 
 //The pins hooked up to the respective cells' DOUT
 
-byte pinsSCK[SCALE_COUNT] = {7,9,A1,A3};
+byte pinsSCK[SCALE_COUNT] = {9,9,9,9};
 //The pins hooked up to the respective cells' SCK
 
 float calibrations[SCALE_COUNT] = {-10000, -10000, -10000, -10000};
@@ -106,19 +105,24 @@ void loop(){
 
   //Read each loadcell
   if (millis() - prevRead > TIME_BETWEEN_READINGS) {
+    DEBUG_PRINT("reading");
+    DEBUG_PRINTLN(freeRam());
     for (byte ii=0; ii<SCALE_COUNT; ii++) {
+      DEBUG_PRINT(ii);
       cellReadings[ii] += allCells[ii]->get_units();
+      DEBUG_PRINT(ii);
     }
     readsSinceSave++;
     prevRead = millis();
+    DEBUG_PRINTLN("done");
   }
 
   //average the readings and save
   if (millis() - prevSave > TIME_BETWEEN_SAVES) {
-    prevSave = millis();
     char dataString[100];
     makeDataString(cellReadings, &readsSinceSave, stationName, dataString);
     saveString(dataString);
+    prevSave = millis();
   } 
 }
 
@@ -128,27 +132,27 @@ void loop(){
 
 //Given seconds since epoch, return the current date
 char* dateDisplay(time_t t,char myString[]) {
-  numList(year(t), "-", myString);
+  numList(year(t), "", myString);
   numList(month(t), "-", myString);
-  numList(day(t), "", myString);
+  numList(day(t), "-", myString);
   return myString;
 }
 
 //Given seconds since epoch, return the current time
 char* timeDisplay(time_t t,char myString[]) {
-  numList(hour(t), ":", myString);
-  numList(minute(t), ":", myString);
   numList(hour(t), "", myString);
+  numList(minute(t), ":", myString);
+  numList(second(t), ":", myString);
   return myString;
 }
 
-// utility function for listing numbers, prints leading 0 and ending separator.
+// utility function for listing numbers, prints leading separator and 0.
 char* numList(float digits, const char *separator, char myString[]){
+  strcat(myString,separator);
   if(digits < 10 && digits > 0) {
     strcat(myString,"0");
   }
   itoa(digits, myString+strlen(myString), 10);
-  strcat(myString,separator);
 }
 
 //Assembles a datum for recording
@@ -160,7 +164,7 @@ char* makeDataString(float *cellReadings,byte *readsSinceSave,const char station
   timeDisplay(t,myString);
   strcat(myString,",\'");
   strcat(myString,stationName);
-  strcat(myString,"\',");
+  strcat(myString,"\'");
   for (byte ii=0; ii<SCALE_COUNT; ii++) {
     numList((cellReadings[ii] / *readsSinceSave),",",myString);
     cellReadings[ii] = 0;
@@ -170,16 +174,16 @@ char* makeDataString(float *cellReadings,byte *readsSinceSave,const char station
 }
 
 //Does what is needed to save a datum
-void saveString(String mystring) {
+void saveString(char mystring[]) {
   DEBUG_PRINTLN(mystring);
   // if the file is available, write to it:
   saveToSD(mystring,fileName);
-  /*if (uploadString(mystring)) {
+  if (uploadString(mystring)) {
     DEBUG_PRINTLN(F("Upload succeded!"));
   }
   else {
-    DEBUG_PRINTLN(F("Upload failed!"));
-  }*/
+    DEBUG_PRINTLN(F("upload failed!"));
+  }
 }
 
 
@@ -192,7 +196,7 @@ void saveString(String mystring) {
 //  -closes all connections
 //  -disables the cc3000
 
-bool uploadString(String mystring) {
+bool uploadString(char mystring[]) {
   DEBUG_PRINTLN(F("attempting upload"));
   Adafruit_CC3000 cc3000 = Adafruit_CC3000(ADAFRUIT_CC3000_CS, ADAFRUIT_CC3000_IRQ, ADAFRUIT_CC3000_VBAT, SPI_CLOCK_DIVIDER); // you can change this clock speed
   if (!cc3000.begin()) {
@@ -234,8 +238,10 @@ bool uploadString(String mystring) {
   return true;
 }
 
-bool postString(String data,Adafruit_CC3000_Client client) {
-  String PostData = "csv_line=" + data;
+bool postString(char data[],Adafruit_CC3000_Client client) {
+  char PostData[strlen(data)+10];
+  strcpy(PostData,"csv_line=");
+  strcat(PostData,data);
   if (client.connected()) {
     DEBUG_PRINT(F("Posting..."));
 
@@ -248,7 +254,7 @@ bool postString(String data,Adafruit_CC3000_Client client) {
     client.println(F("User-Agent: Arduino/1.0"));
     client.println(F("Connection: close"));
     client.print(F("Content-Length: "));
-    client.println(PostData.length());
+    client.println(strlen(PostData));
     client.println();
     client.println(PostData);
     DEBUG_PRINTLN(PostData);
@@ -303,7 +309,7 @@ time_t requestSync()
 }
 #endif
 
-bool saveToSD(String myString, const char filePath[]) {
+bool saveToSD(char myString[], const char filePath[]) {
   SdCard myCard;
   if (!myCard.init(true, CHIP_PIN)) {
     DEBUG_PRINTLN(F("No card!"));
@@ -316,3 +322,8 @@ bool saveToSD(String myString, const char filePath[]) {
   newFile.close();
 }
 
+int freeRam () {
+  extern int __heap_start, *__brkval; 
+  int v; 
+  return (int) &v - (__brkval == 0 ? (int) &__heap_start : (int) __brkval); 
+}
