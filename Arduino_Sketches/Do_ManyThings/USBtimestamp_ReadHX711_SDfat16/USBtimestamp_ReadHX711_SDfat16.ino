@@ -105,16 +105,15 @@ void loop(){
 
   //Read each loadcell
   if (millis() - prevRead > TIME_BETWEEN_READINGS) {
-    DEBUG_PRINT("reading");
-    DEBUG_PRINTLN(freeRam());
+    //DEBUG_PRINT("reading");
     for (byte ii=0; ii<SCALE_COUNT; ii++) {
       DEBUG_PRINT(ii);
+      //DEBUG_PRINTLN(freeRam());
       cellReadings[ii] += allCells[ii]->get_units();
-      DEBUG_PRINT(ii);
     }
     readsSinceSave++;
     prevRead = millis();
-    DEBUG_PRINTLN("done");
+    DEBUG_PRINTLN(F("done"));
   }
 
   //average the readings and save
@@ -205,6 +204,7 @@ bool uploadString(char mystring[]) {
   }
   DEBUG_PRINTLN(F("CC3000 initialized. Connecting to Wifi..."));
   if (!cc3000.connectToAP(WLAN_SSID, WLAN_PASS, WLAN_SECURITY, 1)) {
+    //DEBUG_PRINTLN(freeRam());
     DEBUG_PRINTLN(F("Wifi connection failed!"));
     cc3000.stop();
     return false;
@@ -259,6 +259,7 @@ bool postString(char data[],Adafruit_CC3000_Client client) {
     client.println(PostData);
     DEBUG_PRINTLN(PostData);
     DEBUG_PRINTLN(F("posted!"));
+    //DEBUG_PRINTLN(freeRam());
   }
   delay(1000); //time enough to finish upload
 
@@ -319,11 +320,12 @@ bool saveToSD(char myString[], const char filePath[]) {
   Fat16::init(&myCard);
   newFile.open(filePath, O_CREAT | O_RDWR | O_APPEND);
   newFile.println(myString);
+  //DEBUG_PRINTLN(freeRam());
   newFile.close();
 }
 
-int freeRam () {
+/*int freeRam () {
   extern int __heap_start, *__brkval; 
   int v; 
   return (int) &v - (__brkval == 0 ? (int) &__heap_start : (int) __brkval); 
-}
+}*/
