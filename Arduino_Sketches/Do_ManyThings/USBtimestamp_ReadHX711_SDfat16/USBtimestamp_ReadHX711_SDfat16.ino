@@ -177,12 +177,12 @@ void saveString(char mystring[]) {
   DEBUG_PRINTLN(mystring);
   // if the file is available, write to it:
   saveToSD(mystring,fileName);
-  //if (uploadString(mystring)) {
-  //  DEBUG_PRINTLN(F("Upload succeded!"));
-  //}
-  //else {
-  //  DEBUG_PRINTLN(F("upload failed!"));
-  //}
+  if (uploadString(mystring)) {
+    DEBUG_PRINTLN(F("Upload succeded!"));
+  }
+  else {
+    DEBUG_PRINTLN(F("upload failed!"));
+  }
 }
 
 
