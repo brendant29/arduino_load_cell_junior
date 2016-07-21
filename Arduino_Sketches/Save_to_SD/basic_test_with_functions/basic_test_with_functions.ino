@@ -2,7 +2,7 @@
 #include <Adafruit_CC3000_Server.h>
 #include <ccspi.h>
 
-#include <SPI.h>
+//#include <SPI.h>
 #include <SD.h>
 
 const int chipPin = 4;

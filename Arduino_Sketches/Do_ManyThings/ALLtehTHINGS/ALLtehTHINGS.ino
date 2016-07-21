@@ -14,7 +14,7 @@
 
 //===============Change values as necessary===================
 const String stationName = "Test Station";
-const char fileName[] = "DATALOG.txt";
+ char fileName[] = "DATALOG.txt";
 #define SCALE_COUNT 4
 #define TIME_BETWEEN_READINGS 50 //time between readings, in milliseconds
 #define TIME_BETWEEN_SAVES 10000 //time between saves, in milliseconds
@@ -335,7 +335,7 @@ void processSyncMessage(Adafruit_CC3000_Client client) {
   }
 }
 
-bool saveToSD(String myString, const char filePath[]) {
+bool saveToSD(String myString,  char filePath[]) {
   SdCard myCard;
   if (!myCard.init(true, CHIP_PIN)) {
     DEBUG_PRINTLN(F("No card!"));
