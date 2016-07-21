@@ -40,7 +40,7 @@ unsigned long prevUpload = 0;
 
 // Security can be WLAN_SEC_UNSEC, WLAN_SEC_WEP, WLAN_SEC_WPA or WLAN_SEC_WPA2
 #define WLAN_SECURITY   WLAN_SEC_WPA2
-
+#define DHCP_TIMEOUT 5
 #define IDLE_TIMEOUT_MS  3000      // Amount of time to wait (in milliseconds) with no data 
                                    // received before closing the connection.  If you know the server
                                    // you're accessing is quick to respond, you can reduce this value.
@@ -62,6 +62,7 @@ void loop() {
   
   //average the readings and save
   if (millis() - prevSave > TIME_BETWEEN_SAVES) {
+    prevSave = millis();
     String dataString;
     makeDataString(stationName, &dataString);
     saveToSD(dataString, serialComplete);
@@ -69,6 +70,7 @@ void loop() {
   } 
 
   if (millis() - prevUpload > TIME_BETWEEN_UPLOADS) {
+    prevUpload = millis();
     uploadFile(uploadBuffer, errorBuffer);
   }
 }
@@ -138,8 +140,10 @@ bool uploadFile(String uploadName, String errorName) {
   }
   
   DEBUG_PRINTLN(F("Wifi connected"));
-  while (!cc3000.checkDHCP()) {
-    delay(100); // ToDo: Insert a DHCP timeout!
+  int DHCPcount = 0;
+  while ((!cc3000.checkDHCP()) && (DHCPcount < (10*DHCP_TIMEOUT))) {
+    delay(100);
+    DHCPcount++;
   }
   
   DEBUG_PRINTLN(F("connecting to server..."));
