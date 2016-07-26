@@ -16,6 +16,7 @@ unsigned long prevUpload = 0;
 #define TIME_BETWEEN_SAVES 2000 //time between saves, in milliseconds
 #define TIME_BETWEEN_UPLOADS 10000
 #define DEBUG 1 //whether or not to do things over the serial port
+#define PINK(l) //delay(l)
 
 #if DEBUG
   #define DEBUG_PRINT(x) Serial.print(x)
@@ -67,6 +68,7 @@ void loop() {
     makeDataString(stationName, &dataString);
     saveToSD(dataString, serialComplete);
     saveToSD(dataString, uploadBuffer);
+    DEBUG_PRINTLN(dataString);
   } 
 
   if (millis() - prevUpload > TIME_BETWEEN_UPLOADS) {
@@ -112,7 +114,7 @@ String stringDigits(int digits){
 //Assembles a datum for recording
 String makeDataString(String stationName, String *myString) {
   *myString = "";
-  time_t t = now();
+  /*time_t t = now();
   *myString += dateDisplay(t);
   *myString += " ";
   *myString += timeDisplay(t);
@@ -120,81 +122,16 @@ String makeDataString(String stationName, String *myString) {
   for (int ii=0; ii<4; ii++) {
     *myString += ",";
     *myString += "123.45";
-  }
+  }/*/
+  static int iterates = 0;
+  *myString = "Datum number ";
+  *myString += String(iterates);
+  iterates++;/**/
   return *myString;
 }
 
-bool uploadFile(String uploadName, String errorName) {
-  DEBUG_PRINTLN(F("attempting upload"));
-  Adafruit_CC3000 cc3000 = Adafruit_CC3000(ADAFRUIT_CC3000_CS, ADAFRUIT_CC3000_IRQ, ADAFRUIT_CC3000_VBAT, SPI_CLOCK_DIVIDER); // you can change this clock speed
-  if (!cc3000.begin()) {
-    DEBUG_PRINTLN(F("Couldn't begin()! Check your wiring?"));
-    return false;
-  }
-  
-  DEBUG_PRINTLN(F("CC3000 initialized. Connecting to Wifi..."));
-  if (!cc3000.connectToAP(WLAN_SSID, WLAN_PASS, WLAN_SECURITY, 1)) {
-    DEBUG_PRINTLN(F("Wifi connection failed!"));
-    cc3000.stop();
-    return false;
-  }
-  
-  DEBUG_PRINTLN(F("Wifi connected"));
-  int DHCPcount = 0;
-  while ((!cc3000.checkDHCP()) && (DHCPcount < (10*DHCP_TIMEOUT))) {
-    delay(100);
-    DHCPcount++;
-  }
-  
-  DEBUG_PRINTLN(F("connecting to server..."));
-  Adafruit_CC3000_Client client = connectToServer(&cc3000);
-  if (!client.connected()) {
-    DEBUG_PRINTLN(F("Server connection failed!"));
-    cc3000.disconnect();
-    delay(1000);
-    cc3000.stop();
-    return false;
-  }
-  
-  if (!SD.begin(CHIP_PIN)) {
-    DEBUG_PRINTLN("I don't think the card's available.");
-  }
-  
-  File uploadFile = SD.open(uploadName, FILE_READ);
-  String dataString;
-  
-  while (uploadFile.available()) {
-    dataString = uploadFile.readStringUntil('\n');
-    if (!postString) {
-      saveToSD(dataString, errorName);
-    }
-  }
-
-  uploadFile.close();
-  SD.remove(uploadBuffer);
-  
-  client.close();
-  cc3000.disconnect();
-  
-  uploadFile = SD.open(uploadName, FILE_WRITE);
-  File errorFile = SD.open(errorName, FILE_READ);
-  char buf[100];
-  while (errorFile.available()) {
-    errorFile.readBytes(buf, 100);
-    uploadFile.print(buf);
-  }
-  uploadFile.close();
-  errorFile.close();
-  SD.remove(errorName);
-  
-  delay(1000);
-  cc3000.stop();
-  return true;
-}
-
-
-bool postString(String data,Adafruit_CC3000_Client client) {
-  String PostData = "csv_line=" + data;
+bool postString(String data/*,Adafruit_CC3000_Client client*/) {
+  /*String PostData = "csv_line=" + data;
   if (client.connected()) {
     DEBUG_PRINT(F("Posting..."));
 
@@ -227,11 +164,91 @@ bool postString(String data,Adafruit_CC3000_Client client) {
       lastRead = millis();
     }
   }*/
+  Serial.println(data);
+  Serial.println("Does this \'upload\' succede?");
+  while (!Serial.available());
+  if (!Serial.parseInt()) {
+    return false;
+  }
+  return true;
+}
+
+bool uploadFile(String uploadName, String errorName) {
+  DEBUG_PRINTLN(F("attempting upload"));
+  /*Adafruit_CC3000 cc3000 = Adafruit_CC3000(ADAFRUIT_CC3000_CS, ADAFRUIT_CC3000_IRQ, ADAFRUIT_CC3000_VBAT, SPI_CLOCK_DIVIDER); // you can change this clock speed
+  if (!cc3000.begin()) {
+    DEBUG_PRINTLN(F("Couldn't begin()! Check your wiring?"));
+    return false;
+  }
   
+  DEBUG_PRINTLN(F("CC3000 initialized. Connecting to Wifi..."));
+  if (!cc3000.connectToAP(WLAN_SSID, WLAN_PASS, WLAN_SECURITY, 1)) {
+    DEBUG_PRINTLN(F("Wifi connection failed!"));
+    cc3000.stop();
+    return false;
+  }
+  
+  DEBUG_PRINTLN(F("Wifi connected"));
+  int DHCPcount = 0;
+  while ((!cc3000.checkDHCP()) && (DHCPcount < (10*DHCP_TIMEOUT))) {
+    delay(100);
+    DHCPcount++;
+  }
+  
+  DEBUG_PRINTLN(F("connecting to server..."));
+  Adafruit_CC3000_Client client = connectToServer(&cc3000);
+  if (!client.connected()) {
+    DEBUG_PRINTLN(F("Server connection failed!"));
+    cc3000.disconnect();
+    delay(1000);
+    cc3000.stop();
+    return false;
+  }
+  */
+  if (!SD.begin(CHIP_PIN)) {
+    DEBUG_PRINTLN("I don't think the card's available.");
+    //client.close();
+    //cc3000.disconnect();
+    //delay(1000);
+    //cc3000.stop();
+    return false;
+  }
+  
+  File uploadFile = SD.open(uploadName, FILE_READ);
+  String dataString;
+  
+  while (uploadFile.available()) {
+    dataString = uploadFile.readStringUntil('\n');
+    if (!postString(dataString)) {
+      saveToSD(dataString, errorName);
+    }
+  }
+
+  uploadFile.close();
+  SD.remove(uploadBuffer);
+  
+  //client.close();
+  //cc3000.disconnect();
+  
+  uploadFile = SD.open(uploadName, FILE_WRITE);
+  File errorFile = SD.open(errorName, FILE_READ);
+  char buf[100];
+  while (errorFile.available()) {
+    errorFile.readBytes(buf, 100);
+    uploadFile.print(buf);
+  }
+  uploadFile.close();
+  errorFile.close();
+  SD.remove(errorName);
+  
+  delay(1000);
+  //cc3000.stop();
   return true;
 }
 
 
+
+/*
 Adafruit_CC3000_Client connectToServer(Adafruit_CC3000 *cc3000) {
   uint32_t *ip;
   cc3000->getHostByName(WEBSITE, ip);
@@ -244,7 +261,7 @@ Adafruit_CC3000_Client connectToServer(Adafruit_CC3000 *cc3000) {
   return client;
 }
 
-void processSyncMessage(Adafruit_CC3000_Client client) {
+bool processSyncMessage(Adafruit_CC3000_Client client) {
   unsigned long servertime;
   const unsigned long DEFAULT_TIME = 1357041600; // Jan 1 2013
 
@@ -253,8 +270,12 @@ void processSyncMessage(Adafruit_CC3000_Client client) {
     if( servertime >= DEFAULT_TIME) { // check the integer is a valid time (greater than Jan 1 2013)
       setTime(servertime); // Sync Arduino clock to the time received on the serial port
     }
+    return true;
   }
-}
+  else return false;
+}*/
+
+
 
 bool saveToSD(String myString, String filePath) {
   if (!SD.begin(CHIP_PIN)) {
@@ -264,6 +285,6 @@ bool saveToSD(String myString, String filePath) {
   File newFile = SD.open(filePath, FILE_WRITE);
   newFile.println(myString);
   newFile.close();
+  PINK(50);
 }
-
 

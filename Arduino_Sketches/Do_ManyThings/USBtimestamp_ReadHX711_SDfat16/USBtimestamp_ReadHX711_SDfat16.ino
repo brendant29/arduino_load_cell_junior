@@ -9,10 +9,10 @@
 const char stationName[] = "Test Station";
 const char fileName[] = "DATALOG.txt";
 #define SCALE_COUNT 4
-#define TIME_BETWEEN_READINGS 15000 //time between readings, in milliseconds
-#define TIME_BETWEEN_SAVES 300000 //time between saves, in milliseconds
+#define TIME_BETWEEN_READINGS 1500 //time between readings, in milliseconds
+#define TIME_BETWEEN_SAVES 30000 //time between saves, in milliseconds
 
-#define DEBUG 0 //whether or not to do things over the serial port
+#define DEBUG 1 //whether or not to do things over the serial port
 
 byte pinsDOUT[SCALE_COUNT] = {8,A0,A4,A4}; 
 //The pins hooked up to the respective cells' DOUT
@@ -148,7 +148,7 @@ char* timeDisplay(time_t t,char myString[]) {
 // utility function for listing numbers, prints leading separator and 0.
 char* numList(float digits, const char *separator, char myString[]){
   strcat(myString,separator);
-  if(digits < 10 && digits > 0) {
+  if(digits < 10 && digits >= 0) {
     strcat(myString,"0");
   }
   itoa(digits, myString+strlen(myString), 10);

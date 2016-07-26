@@ -3,10 +3,10 @@
 #define scaleCount 4
 //how many load cells are hooked up
 
-int pinsDOUT[scaleCount] = {8,8,8,8}; 
+int pinsDOUT[scaleCount] = {8,A0,6,6}; 
 //The pins hooked up to the respective cells' DOUT
 
-int pinsSCK[scaleCount] = {9,9,9,9};
+int pinsSCK[scaleCount] = {9,A1,7,7};
 //The pins hooked up to the respective cells' SCK
 
 float calibrations[scaleCount] = {-10000, -10000, -10000, -10000};
