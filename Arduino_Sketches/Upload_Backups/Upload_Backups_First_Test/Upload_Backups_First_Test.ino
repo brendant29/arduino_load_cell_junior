@@ -229,12 +229,19 @@ bool uploadFromFile(String uploadName, String errorName) {
     dataString.trim();
     if (!postString(dataString)) {
       saveToSD(dataString, errorName);
-      saveToSD(dataString, "ERRLOG.TXT");
+      #if DEBUG
+        saveToSD(dataString, "ERRLOG.TXT");
+      #endif
     }
-    saveToSD(dataString, "UPLOG.TXT");
+    #if DEBUG
+      saveToSD(dataString, "REUPLOG.TXT");
+    #endif
   }
 
   uploadFile.close();
+
+  DEBUG_PRINT("Juggling Files...");
+  
   SD.remove(uploadName);
   
   //client.close();
@@ -254,8 +261,6 @@ bool uploadFromFile(String uploadName, String errorName) {
   errorFile.close();
   SD.remove(errorName);
   DEBUG_PRINTLN("Files juggled.");
-
-  fileTest(uploadName);
   
   delay(1000);
   //cc3000.stop();
@@ -290,27 +295,6 @@ bool processSyncMessage(Adafruit_CC3000_Client client) {
   }
   else return false;
 }*/
-
-void fileToSerial(String fileName) {
-  File outFile = SD.open(fileName, FILE_READ);
-  char buf[100];
-  int numBytes = 0;
-  while (outFile.available()) {
-    numBytes = outFile.readBytes(buf, 99);
-    buf[numBytes] = '\0';
-    DEBUG_PRINT(buf);
-  }
-  DEBUG_PRINTLN("");
-  outFile.close();
-}
-
-void fileTest(String fileName) {
-  fileToSerial(fileName);
-  File testFile = SD.open(fileName, FILE_WRITE);
-  testFile.println("Test String");
-  testFile.close();
-  fileToSerial(fileName);
-}
 
 bool saveToSD(String myString, String filePath) {
   if (!sdBegun) {
