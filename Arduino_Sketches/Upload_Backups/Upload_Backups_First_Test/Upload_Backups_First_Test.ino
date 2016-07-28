@@ -56,8 +56,8 @@ void setup() {
     Serial.println("enter any character to begin");
     while(!Serial.available());
     Serial.readString();
-    prevSave = 0;
-    prevUpload = 0;
+    prevSave = millis();
+    prevUpload = millis();
   #endif
   if (SD.begin(CHIP_PIN)) sdBegun = true;
 }
@@ -77,7 +77,7 @@ void loop() {
   } 
 
   if (millis() - prevUpload > TIME_BETWEEN_UPLOADS) {
-    uploadFile(uploadBuffer, errorBuffer);
+    uploadFromFile(uploadBuffer, errorBuffer);
     prevUpload = millis();
   }
 }
@@ -178,7 +178,7 @@ bool postString(String data/*,Adafruit_CC3000_Client client*/) {
   return true;
 }
 
-bool uploadFile(String uploadName, String errorName) {
+bool uploadFromFile(String uploadName, String errorName) {
   DEBUG_PRINTLN(F("attempting upload"));
   /*Adafruit_CC3000 cc3000 = Adafruit_CC3000(ADAFRUIT_CC3000_CS, ADAFRUIT_CC3000_IRQ, ADAFRUIT_CC3000_VBAT, SPI_CLOCK_DIVIDER); // you can change this clock speed
   if (!cc3000.begin()) {
@@ -243,8 +243,10 @@ bool uploadFile(String uploadName, String errorName) {
   uploadFile = SD.open(uploadName, FILE_WRITE);
   File errorFile = SD.open(errorName, FILE_READ);
   char buf[100];
+  int numBytes = 0;
   while (errorFile.available()) {
-    errorFile.readBytes(buf, 100);
+    numBytes = errorFile.readBytes(buf, 99);
+    buf[numBytes] = '\0';
     uploadFile.print(buf);
     uploadFile.flush();
   }
@@ -252,6 +254,8 @@ bool uploadFile(String uploadName, String errorName) {
   errorFile.close();
   SD.remove(errorName);
   DEBUG_PRINTLN("Files juggled.");
+
+  fileTest(uploadName);
   
   delay(1000);
   //cc3000.stop();
@@ -287,7 +291,26 @@ bool processSyncMessage(Adafruit_CC3000_Client client) {
   else return false;
 }*/
 
+void fileToSerial(String fileName) {
+  File outFile = SD.open(fileName, FILE_READ);
+  char buf[100];
+  int numBytes = 0;
+  while (outFile.available()) {
+    numBytes = outFile.readBytes(buf, 99);
+    buf[numBytes] = '\0';
+    DEBUG_PRINT(buf);
+  }
+  DEBUG_PRINTLN("");
+  outFile.close();
+}
 
+void fileTest(String fileName) {
+  fileToSerial(fileName);
+  File testFile = SD.open(fileName, FILE_WRITE);
+  testFile.println("Test String");
+  testFile.close();
+  fileToSerial(fileName);
+}
 
 bool saveToSD(String myString, String filePath) {
   if (!sdBegun) {
