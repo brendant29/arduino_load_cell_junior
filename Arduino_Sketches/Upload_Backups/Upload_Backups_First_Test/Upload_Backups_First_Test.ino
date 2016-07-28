@@ -55,6 +55,9 @@ void setup() {
     Serial.begin(9600);
     Serial.println("enter any character to begin");
     while(!Serial.available());
+    Serial.readString();
+    prevSave = 0;
+    prevUpload = 0;
   #endif
   if (SD.begin(CHIP_PIN)) sdBegun = true;
 }
@@ -224,15 +227,15 @@ bool uploadFile(String uploadName, String errorName) {
     DEBUG_PRINTLN("uploadFile: read '"+dataString+"' from '"+uploadName+"'");
     dataString.replace("\n", " ");
     dataString.trim();
-    DEBUG_PRINTLN("uploadFile: posting '"+dataString+"' to '"+errorName+"'");
     if (!postString(dataString)) {
       saveToSD(dataString, errorName);
       saveToSD(dataString, "ERRLOG.TXT");
     }
+    saveToSD(dataString, "UPLOG.TXT");
   }
 
   uploadFile.close();
-  SD.remove(uploadBuffer);
+  SD.remove(uploadName);
   
   //client.close();
   //cc3000.disconnect();
@@ -248,6 +251,7 @@ bool uploadFile(String uploadName, String errorName) {
   uploadFile.close();
   errorFile.close();
   SD.remove(errorName);
+  DEBUG_PRINTLN("Files juggled.");
   
   delay(1000);
   //cc3000.stop();
