@@ -16,7 +16,6 @@ unsigned long prevUpload = 0;
 #define TIME_BETWEEN_SAVES 2000 //time between saves, in milliseconds
 #define TIME_BETWEEN_UPLOADS 10000
 #define DEBUG 1 //whether or not to do things over the serial port
-#define PINK(l) //delay(l)
 
 #if DEBUG
   #define DEBUG_PRINT(x) Serial.print(x)
@@ -49,12 +48,15 @@ unsigned long prevUpload = 0;
 // What page to post to!
 #define WEBSITE      "winter-runoff.soils.wisc.edu"
 
+bool sdBegun = false;
 
 void setup() {
   #if DEBUG
     Serial.begin(9600);
-    while(!Serial);
+    Serial.println("enter any character to begin");
+    while(!Serial.available());
   #endif
+  if (SD.begin(CHIP_PIN)) sdBegun = true;
 }
 
 void loop() {
@@ -72,8 +74,8 @@ void loop() {
   } 
 
   if (millis() - prevUpload > TIME_BETWEEN_UPLOADS) {
-    prevUpload = millis();
     uploadFile(uploadBuffer, errorBuffer);
+    prevUpload = millis();
   }
 }
 
@@ -165,7 +167,7 @@ bool postString(String data/*,Adafruit_CC3000_Client client*/) {
     }
   }*/
   Serial.println(data);
-  Serial.println("Does this \'upload\' succede?");
+  Serial.println("Does this \'upload\' succeed?");
   while (!Serial.available());
   if (!Serial.parseInt()) {
     return false;
@@ -205,7 +207,7 @@ bool uploadFile(String uploadName, String errorName) {
     return false;
   }
   */
-  if (!SD.begin(CHIP_PIN)) {
+  if (!sdBegun) {
     DEBUG_PRINTLN("I don't think the card's available.");
     //client.close();
     //cc3000.disconnect();
@@ -219,8 +221,13 @@ bool uploadFile(String uploadName, String errorName) {
   
   while (uploadFile.available()) {
     dataString = uploadFile.readStringUntil('\n');
+    DEBUG_PRINTLN("uploadFile: read '"+dataString+"' from '"+uploadName+"'");
+    dataString.replace("\n", " ");
+    dataString.trim();
+    DEBUG_PRINTLN("uploadFile: posting '"+dataString+"' to '"+errorName+"'");
     if (!postString(dataString)) {
       saveToSD(dataString, errorName);
+      saveToSD(dataString, "ERRLOG.TXT");
     }
   }
 
@@ -236,6 +243,7 @@ bool uploadFile(String uploadName, String errorName) {
   while (errorFile.available()) {
     errorFile.readBytes(buf, 100);
     uploadFile.print(buf);
+    uploadFile.flush();
   }
   uploadFile.close();
   errorFile.close();
@@ -278,13 +286,14 @@ bool processSyncMessage(Adafruit_CC3000_Client client) {
 
 
 bool saveToSD(String myString, String filePath) {
-  if (!SD.begin(CHIP_PIN)) {
+  if (!sdBegun) {
     DEBUG_PRINTLN(F("No card!"));
     return false;
   }
+  DEBUG_PRINTLN("saveToSD writing '"+myString+"' to '"+filePath+"'");
   File newFile = SD.open(filePath, FILE_WRITE);
   newFile.println(myString);
   newFile.close();
-  PINK(50);
+  return true;
 }
 
