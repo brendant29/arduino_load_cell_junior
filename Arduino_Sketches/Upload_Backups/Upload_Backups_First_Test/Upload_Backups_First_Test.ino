@@ -136,8 +136,8 @@ String makeDataString(String stationName, String *myString) {
 }
 
 bool postString(String data/*,Adafruit_CC3000_Client client*/) {
-  /*String PostData = "csv_line=" + data;
-  if (client.connected()) {
+  String PostData = "csv_line=" + data;
+  /*if (client.connected()) {
     DEBUG_PRINT(F("Posting..."));
 
     //can use print instead of fastrprint 
@@ -155,7 +155,12 @@ bool postString(String data/*,Adafruit_CC3000_Client client*/) {
     DEBUG_PRINTLN(F("posted!"));
   }
   delay(1000); //time enough to finish upload
-  if (client.available()) processSyncMessage(client);
+  if (!client.available()) {
+    return false;
+  }
+  if (!processSyncMessage(client)) {
+    return false;
+  }
 
   /*
   //a bit of code to read a response from the server 
