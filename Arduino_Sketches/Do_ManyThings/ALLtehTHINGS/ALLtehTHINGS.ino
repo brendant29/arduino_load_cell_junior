@@ -1,3 +1,7 @@
+#include <Wire.h>
+#include <DS3232RTC.h>
+#include <TimeLib.h>
+
 #include <Adafruit_CC3000.h>
 #include <Adafruit_CC3000_Server.h>
 #include <ccspi.h>
@@ -5,7 +9,6 @@
 #include <Fat16.h>
 #include <Fat16util.h>
 
-#include <TimeLib.h>
 #include <HX711.h>
 
 #include <avr/sleep.h>
@@ -14,10 +17,10 @@
 
 //===============Change values as necessary===================
 const String stationName = "Test Station";
- char fileName[] = "DATALOG.txt";
+char fileName[] = "DATALOG.txt";
 #define SCALE_COUNT 4
-#define TIME_BETWEEN_READINGS 50 //time between readings, in milliseconds
-#define TIME_BETWEEN_SAVES 10000 //time between saves, in milliseconds
+#define TIME_BETWEEN_READINGS .5 //time between readings, in seconds
+#define TIME_BETWEEN_SAVES 10 //time between saves, in seconds
 
 #define DEBUG 1 //whether or not to do things over the serial port
 
@@ -81,15 +84,6 @@ int readsSinceSave = 0;
 
 uint32_t ip;
 
-// Data logging configuration.
-#define LOGGING_FREQ_SECONDS   24       // Seconds to wait before a new sensor reading is logged.
-
-#define MAX_SLEEP_ITERATIONS   LOGGING_FREQ_SECONDS / 8  // Number of times to sleep (for 8 seconds)
-
-// Internal state used by the sketch.
-int sleepIterations = 0;
-volatile bool watchdogActivated = false;
-
 //=====================================================================
 
 void setup() {
@@ -98,7 +92,6 @@ void setup() {
     Serial.begin(9600);
     while(!Serial);
   #endif
-
   
   //setting up the cells
   for(int ii=0; ii<SCALE_COUNT; ii++){
@@ -108,56 +101,33 @@ void setup() {
     allCells[ii]->set_scale(calibrations[ii]);
     allCells[ii]->power_down();
     cellReadings[ii] = 0;
-  }  
-  noInterrupts();
-  
-  // Set the watchdog reset bit in the MCU status register to 0.
-  MCUSR &= ~(1<<WDRF);
-  
-  // Set WDCE and WDE bits in the watchdog control register.
-  WDTCSR |= (1<<WDCE) | (1<<WDE);
-
-  // Set watchdog clock prescaler bits to a value of 8 seconds.
-  WDTCSR = (1<<WDP0) | (1<<WDP3);
-  
-  // Enable watchdog as interrupt only (no reset).
-  WDTCSR |= (1<<WDIE);
-  
-  // Enable interrupts again.
-  interrupts();
-  
+  }
   DEBUG_PRINTLN(F("Setup complete."));
-  delay(100);
 }
 
-void loop(){    
-  if (watchdogActivated)
-  {
-    watchdogActivated = false;
-    // Increase the count of sleep iterations and take a sensor
-    // reading once the max number of iterations has been hit.
-    //sleepIterations += 1;
-    
-    //Read each loadcell
-    if (millis() - prevRead > TIME_BETWEEN_READINGS) {
-      prevRead = millis();
-      for (int ii=0; ii<SCALE_COUNT; ii++) {
-        allCells[ii]->power_up();
-        cellReadings[ii] += allCells[ii]->get_units();
-        allCells[ii]->power_down();
-      }
-      readsSinceSave++;
+void loop(){
+  setTime(RTC.get());
+  
+  //Read each loadcell
+  if (now() - prevRead > TIME_BETWEEN_READINGS) {
+    prevRead = now();
+    for (int ii=0; ii<SCALE_COUNT; ii++) {
+      allCells[ii]->power_up();
+      cellReadings[ii] += allCells[ii]->get_units();
+      allCells[ii]->power_down();
     }
-    //average the readings and save
-    if (millis() - prevSave > TIME_BETWEEN_SAVES) {
-      // Reset the number of sleep iterations.
-      sleepIterations = 0;
-      String dataString;
-      makeDataString(cellReadings, &readsSinceSave, stationName, &dataString);
-      saveString(&dataString);
-    } 
-    delay(100);
+    readsSinceSave++;
   }
+  
+  //average the readings and save
+  if (now() - prevSave > TIME_BETWEEN_SAVES) {
+    prevSave = now();
+    String dataString;
+    makeDataString(cellReadings, &readsSinceSave, stationName, &dataString);
+    saveString(&dataString);
+  } 
+  delay(100);
+  
   sleep();
 }
 
@@ -347,14 +317,6 @@ bool saveToSD(String myString,  char filePath[]) {
   newFile.println(myString);
   //DEBUG_PRINTLN(freeRam());
   newFile.close();
-}
-
-// Define watchdog timer interrupt.
-ISR(WDT_vect)
-{
-  // Set the watchdog activated flag.
-  // Note that you shouldn't do much work inside an interrupt handler.
-  watchdogActivated = true;
 }
 
 // Put the Arduino to sleep.

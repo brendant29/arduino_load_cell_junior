@@ -135,9 +135,9 @@ String makeDataString(String stationName, String *myString) {
   return *myString;
 }
 
-bool postString(String data/*,Adafruit_CC3000_Client client*/) {
+bool postString(String data,Adafruit_CC3000_Client client) {
   String PostData = "csv_line=" + data;
-  /*if (client.connected()) {
+  if (client.connected()) {
     DEBUG_PRINT(F("Posting..."));
 
     //can use print instead of fastrprint 
@@ -173,19 +173,20 @@ bool postString(String data/*,Adafruit_CC3000_Client client*/) {
       Serial.print(c);
       lastRead = millis();
     }
-  }*/
+  }*//*
   Serial.println(data);
   Serial.println("Does this \'upload\' succeed?");
   while (!Serial.available());
   if (!Serial.parseInt()) {
     return false;
-  }
+  }*/
   return true;
 }
 
 bool uploadFromFile(String uploadName, String errorName) {
   DEBUG_PRINTLN(F("attempting upload"));
-  /*Adafruit_CC3000 cc3000 = Adafruit_CC3000(ADAFRUIT_CC3000_CS, ADAFRUIT_CC3000_IRQ, ADAFRUIT_CC3000_VBAT, SPI_CLOCK_DIVIDER); // you can change this clock speed
+  Adafruit_CC3000 cc3000 = Adafruit_CC3000(ADAFRUIT_CC3000_CS, ADAFRUIT_CC3000_IRQ, ADAFRUIT_CC3000_VBAT, SPI_CLOCK_DIVIDER); // you can change this clock speed
+  DEBUG_PRINTLN(F("attempting upload"));
   if (!cc3000.begin()) {
     DEBUG_PRINTLN(F("Couldn't begin()! Check your wiring?"));
     return false;
@@ -214,13 +215,13 @@ bool uploadFromFile(String uploadName, String errorName) {
     cc3000.stop();
     return false;
   }
-  */
+  
   if (!sdBegun) {
     DEBUG_PRINTLN("I don't think the card's available.");
-    //client.close();
-    //cc3000.disconnect();
-    //delay(1000);
-    //cc3000.stop();
+    client.close();
+    cc3000.disconnect();
+    delay(1000);
+    cc3000.stop();
     return false;
   }
   
@@ -232,7 +233,7 @@ bool uploadFromFile(String uploadName, String errorName) {
     DEBUG_PRINTLN("uploadFile: read '"+dataString+"' from '"+uploadName+"'");
     dataString.replace("\n", " ");
     dataString.trim();
-    if (!postString(dataString)) {
+    if (!postString(dataString, client)) {
       saveToSD(dataString, errorName);
       #if DEBUG
         saveToSD(dataString, "ERRLOG.TXT");
@@ -249,8 +250,8 @@ bool uploadFromFile(String uploadName, String errorName) {
   
   SD.remove(uploadName);
   
-  //client.close();
-  //cc3000.disconnect();
+  client.close();
+  cc3000.disconnect();
   
   uploadFile = SD.open(uploadName, FILE_WRITE);
   File errorFile = SD.open(errorName, FILE_READ);
@@ -268,13 +269,13 @@ bool uploadFromFile(String uploadName, String errorName) {
   DEBUG_PRINTLN("Files juggled.");
   
   delay(1000);
-  //cc3000.stop();
+  cc3000.stop();
   return true;
 }
 
 
 
-/*
+
 Adafruit_CC3000_Client connectToServer(Adafruit_CC3000 *cc3000) {
   uint32_t *ip;
   cc3000->getHostByName(WEBSITE, ip);
@@ -299,7 +300,7 @@ bool processSyncMessage(Adafruit_CC3000_Client client) {
     return true;
   }
   else return false;
-}*/
+}
 
 bool saveToSD(String myString, String filePath) {
   if (!sdBegun) {
