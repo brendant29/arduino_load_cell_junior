@@ -1,3 +1,7 @@
+#include <avr/sleep.h>
+#include <avr/power.h>
+#include <avr/wdt.h>
+
 #include <Wire.h>
 #include <DS3232RTC.h>
 #include <TimeLib.h>
@@ -6,28 +10,26 @@
 #include <Adafruit_CC3000_Server.h>
 #include <ccspi.h>
 
-#include <Fat16.h>
-#include <Fat16util.h>
+#include <SD.h>
 
 #include <HX711.h>
 
-#include <avr/sleep.h>
-#include <avr/power.h>
-#include <avr/wdt.h>
-
 //===============Change values as necessary===================
 const String stationName = "Test Station";
-char fileName[] = "DATALOG.txt";
+String serialCompleteName = "DATALOG.txt";
+String uploadBufName = "UPLOAD.txt";
+String errorBufName = "ERROR.txt";
 #define SCALE_COUNT 4
 #define TIME_BETWEEN_READINGS .5 //time between readings, in seconds
-#define TIME_BETWEEN_SAVES 10 //time between saves, in seconds
+#define TIME_BETWEEN_SAVES 2 //time between saves, in seconds
+#define TIME_BETWEEN_UPLOADS 10
 
-#define DEBUG 1 //whether or not to do things over the serial port
+#define DEBUG 0 //whether or not to do things over the serial port
 
-byte pinsDOUT[SCALE_COUNT] = {8,8,8,8}; 
+byte pinsDOUT[SCALE_COUNT] = {41,8,8,8}; 
 //The pins hooked up to the respective cells' DOUT
 
-byte pinsSCK[SCALE_COUNT] = {9,9,9,9};
+byte pinsSCK[SCALE_COUNT] = {39,9,9,9};
 //The pins hooked up to the respective cells' SCK
 
 float calibrations[SCALE_COUNT] = {-10000, -10000, -10000, -10000};
@@ -51,7 +53,6 @@ int gain = 128;
 
 #define CHIP_PIN 4
 #define TIME_HEADER  "OK::"   // Header tag for serial time sync message
-#define TIME_REQUEST  7    // ASCII bell character requests a time sync message 
 
 unsigned long prevRead = 0;
 unsigned long prevSave = 0;
@@ -74,7 +75,7 @@ int readsSinceSave = 0;
 
 // Security can be WLAN_SEC_UNSEC, WLAN_SEC_WEP, WLAN_SEC_WPA or WLAN_SEC_WPA2
 #define WLAN_SECURITY   WLAN_SEC_WPA2
-
+#define DHCP_TIMEOUT 5
 #define IDLE_TIMEOUT_MS  3000      // Amount of time to wait (in milliseconds) with no data 
                                    // received before closing the connection.  If you know the server
                                    // you're accessing is quick to respond, you can reduce this value.
@@ -84,14 +85,18 @@ int readsSinceSave = 0;
 
 uint32_t ip;
 
-//=====================================================================
+bool sdBegun = false;
 
+//=====================================================================
 void setup() {
   
   #if DEBUG
     Serial.begin(9600);
-    while(!Serial);
+    Serial.println("enter any character to begin");
+    while(!Serial.available());
+    Serial.readString();
   #endif
+  if (SD.begin(CHIP_PIN)) sdBegun = true;
   
   //setting up the cells
   for(int ii=0; ii<SCALE_COUNT; ii++){
@@ -102,6 +107,9 @@ void setup() {
     allCells[ii]->power_down();
     cellReadings[ii] = 0;
   }
+  setTime(RTC.get());
+  prevSave = now();
+  prevUpload = now();
   DEBUG_PRINTLN(F("Setup complete."));
 }
 
@@ -124,10 +132,16 @@ void loop(){
     prevSave = now();
     String dataString;
     makeDataString(cellReadings, &readsSinceSave, stationName, &dataString);
-    saveString(&dataString);
+    saveToSD(dataString, serialCompleteName);
+    saveToSD(dataString, uploadBufName);
+    DEBUG_PRINTLN(dataString);
   } 
+
+  if (now() - prevUpload > TIME_BETWEEN_UPLOADS) {
+    uploadFromFile(uploadBufName, errorBufName);
+    prevUpload = now();
+  }
   delay(100);
-  
   sleep();
 }
 
@@ -182,45 +196,30 @@ String makeDataString(float *cellReadings, int *readsSinceSave, String stationNa
   return *myString;
 }
 
-//Does what is needed to save a datum
-void saveString(String *myString) {
-  DEBUG_PRINTLN(*myString);
-  if (uploadString(*myString)) {
-    DEBUG_PRINTLN(F("Upload succeded!"));
-  }
-  else {
-    DEBUG_PRINTLN(F("Upload failed!"));
-  }
-  saveToSD(*myString,fileName);
-}
 
-
-//  This function is longer than it 
-//  probably should be. In order, it:
-//  -initializes the cc3000 
-//  -connects to wifi
-//  -connects to a server
-//  -uploads the string
-//  -closes all connections
-//  -disables the cc3000
-
-bool uploadString(String mystring) {
+bool uploadFromFile(String uploadName, String errorName) {
   DEBUG_PRINTLN(F("attempting upload"));
   Adafruit_CC3000 cc3000 = Adafruit_CC3000(ADAFRUIT_CC3000_CS, ADAFRUIT_CC3000_IRQ, ADAFRUIT_CC3000_VBAT, SPI_CLOCK_DIVIDER); // you can change this clock speed
+  
   if (!cc3000.begin()) {
     DEBUG_PRINTLN(F("Couldn't begin()! Check your wiring?"));
     return false;
   }
+  
   DEBUG_PRINTLN(F("CC3000 initialized. Connecting to Wifi..."));
   if (!cc3000.connectToAP(WLAN_SSID, WLAN_PASS, WLAN_SECURITY, 1)) {
     DEBUG_PRINTLN(F("Wifi connection failed!"));
     cc3000.stop();
     return false;
   }
+  
   DEBUG_PRINTLN(F("Wifi connected"));
-  while (!cc3000.checkDHCP()) {
-    delay(100); // ToDo: Insert a DHCP timeout!
+  int DHCPcount = 0;
+  while ((!cc3000.checkDHCP()) && (DHCPcount < (10*DHCP_TIMEOUT))) {
+    delay(100);
+    DHCPcount++;
   }
+  
   DEBUG_PRINTLN(F("connecting to server..."));
   Adafruit_CC3000_Client client = connectToServer(&cc3000);
   if (!client.connected()) {
@@ -230,15 +229,59 @@ bool uploadString(String mystring) {
     cc3000.stop();
     return false;
   }
-  if (!postString(mystring, client)) {
+  
+  if (!sdBegun) {
+    DEBUG_PRINTLN("I don't think the card's available.");
     client.close();
     cc3000.disconnect();
     delay(1000);
     cc3000.stop();
     return false;
   }
+  
+  File uploadFile = SD.open(uploadName, FILE_READ);
+  String dataString;
+  
+  while (uploadFile.available()) {
+    dataString = uploadFile.readStringUntil('\n');
+    DEBUG_PRINTLN("uploadFile: read '"+dataString+"' from '"+uploadName+"'");
+    dataString.replace("\n", " ");
+    dataString.trim();
+    if (!postString(dataString, client)) {
+      saveToSD(dataString, errorName);
+      #if DEBUG
+        saveToSD(dataString, "ERRLOG.TXT");
+      #endif
+    }
+    #if DEBUG
+      saveToSD(dataString, "REUPLOG.TXT");
+    #endif
+  }
+
+  uploadFile.close();
+
+  DEBUG_PRINT("Juggling Files...");
+  
+  SD.remove(uploadName);
+  
   client.close();
   cc3000.disconnect();
+  
+  uploadFile = SD.open(uploadName, FILE_WRITE);
+  File errorFile = SD.open(errorName, FILE_READ);
+  char buf[100];
+  int numBytes = 0;
+  while (errorFile.available()) {
+    numBytes = errorFile.readBytes(buf, 99);
+    buf[numBytes] = '\0';
+    uploadFile.print(buf);
+    uploadFile.flush();
+  }
+  uploadFile.close();
+  errorFile.close();
+  SD.remove(errorName);
+  DEBUG_PRINTLN("Files juggled.");
+  
   delay(1000);
   cc3000.stop();
   return true;
@@ -264,7 +307,12 @@ bool postString(String data,Adafruit_CC3000_Client client) {
     DEBUG_PRINTLN(F("posted!"));
   }
   delay(1000); //time enough to finish upload
-  if (client.available()) processSyncMessage(client);
+  if (!client.available()) {
+    return false;
+  }
+  if (!processSyncMessage(client)) {
+    return false;
+  }
 
   /*
   //a bit of code to read a response from the server 
@@ -277,8 +325,13 @@ bool postString(String data,Adafruit_CC3000_Client client) {
       Serial.print(c);
       lastRead = millis();
     }
+  }*//*
+  Serial.println(data);
+  Serial.println("Does this \'upload\' succeed?");
+  while (!Serial.available());
+  if (!Serial.parseInt()) {
+    return false;
   }*/
-  
   return true;
 }
 
@@ -293,33 +346,32 @@ Adafruit_CC3000_Client connectToServer(Adafruit_CC3000 *cc3000) {
   return client;
 }
 
-void processSyncMessage(Adafruit_CC3000_Client client) {
+bool processSyncMessage(Adafruit_CC3000_Client client) {
   unsigned long servertime;
   const unsigned long DEFAULT_TIME = 1357041600; // Jan 1 2013
 
   if(client.find(TIME_HEADER)) {
     servertime = client.parseInt();
     if( servertime >= DEFAULT_TIME) { // check the integer is a valid time (greater than Jan 1 2013)
-      setTime(servertime); // Sync Arduino clock to the time received on the serial port
+      //setTime(servertime); // Sync Arduino clock to the time received on the serial port
     }
+    return true;
   }
+  else return false;
 }
 
-bool saveToSD(String myString,  char filePath[]) {
-  SdCard myCard;
-  if (!myCard.init(true, CHIP_PIN)) {
+bool saveToSD(String myString, String filePath) {
+  if (!sdBegun) {
     DEBUG_PRINTLN(F("No card!"));
     return false;
   }
-  Fat16 newFile;
-  Fat16::init(&myCard);
-  newFile.open(filePath, O_CREAT | O_RDWR | O_APPEND);
+  DEBUG_PRINTLN("saveToSD writing '"+myString+"' to '"+filePath+"'");
+  File newFile = SD.open(filePath, FILE_WRITE);
   newFile.println(myString);
-  //DEBUG_PRINTLN(freeRam());
   newFile.close();
+  return true;
 }
 
-// Put the Arduino to sleep.
 void sleep()
 {
   // Set sleep to full power down.  Only external interrupts or 
