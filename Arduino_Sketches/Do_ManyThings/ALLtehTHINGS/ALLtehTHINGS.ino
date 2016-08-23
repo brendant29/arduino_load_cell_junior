@@ -265,6 +265,12 @@ bool uploadFromFile(String uploadName, String errorName) {
     DEBUG_PRINTLN("uploadFile: read '"+dataString+"' from '"+uploadName+"'");
     dataString.replace("\n", " ");
     dataString.trim();
+    
+    //connect to the server, if not connected already
+    if (!client.connected()) {
+      client = connectToServer(&cc3000);
+    }
+    
     if (!postString(dataString, client)) {
       saveToSD(dataString, errorName);
       #if DEBUG
