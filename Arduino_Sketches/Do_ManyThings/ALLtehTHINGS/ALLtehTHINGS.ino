@@ -26,20 +26,20 @@ String errorBufName = "ERROR.txt";
 
 #define DEBUG 0 //whether or not to do things over the serial port
 
-byte pinsDOUT[SCALE_COUNT] = {41,8,8,8}; 
 //The pins hooked up to the respective cells' DOUT
+byte pinsDOUT[SCALE_COUNT] = {41,8,8,8}; 
 
-byte pinsSCK[SCALE_COUNT] = {39,9,9,9};
 //The pins hooked up to the respective cells' SCK
+byte pinsSCK[SCALE_COUNT] = {39,9,9,9};
 
-float calibrations[SCALE_COUNT] = {-10000, -10000, -10000, -10000};
 //The calibration factors for the cells
+float calibrations[SCALE_COUNT] = {-10000, -10000, -10000, -10000};
 
-HX711 *allCells[SCALE_COUNT] = {NULL, NULL, NULL, NULL}; 
 //The number of NULLs should be the same as the number of loadcells.
+HX711 *allCells[SCALE_COUNT] = {NULL, NULL, NULL, NULL}; 
 
-int gain = 128;
 //the gain can be 128 or 64 on channel A, or 32 on channel B
+const int gain = 128;
 
 //=============================================================
 
@@ -70,7 +70,7 @@ int readsSinceSave = 0;
 // Use hardware SPI for the remaining pins
 // On an UNO, SCK = 13, MISO = 12, and MOSI = 11
 
-//The name and password of the Wifi acces point:
+//The name and password of the Wifi access point:
 #define WLAN_SSID       "GALAXY_S4_4545"  //name of wifi. cannot be longer than 32 characters!
 #define WLAN_PASS       "wljo2151"        //password for wifi
 
@@ -105,14 +105,14 @@ void setup() {
     allCells[ii]->set_gain(gain);
     allCells[ii]->tare();
     allCells[ii]->set_scale(calibrations[ii]);
-    allCells[ii]->power_down();
+    allCells[ii]->power_down(); // start this way to save power
     cellReadings[ii] = 0;
   }
 
   setTime(RTC.get()); //set arduino internal time from RTC
 
-  pinMode(RTC_ALARM_PIN, INPUT_PULLUP); 
   //INPUT mode would likely work, but INPUT_PULLUP means it won't go LOW due to random noise.
+  pinMode(RTC_ALARM_PIN, INPUT_PULLUP); 
   
   RTC.alarmInterrupt(2, false); //disable alarm 2
   RTC.alarmInterrupt(1, true);   //enable alarm 1
@@ -145,6 +145,10 @@ void loop(){
     prevSave = now();
     String dataString;
     makeDataString(cellReadings, &readsSinceSave, stationName, &dataString);
+    /*
+     * Data gets stored in two places: A permanent, serially-complete log for reading
+     * off the cards, and a temporary buffer awaiting upload.
+     */
     saveToSD(dataString, serialCompleteName);
     saveToSD(dataString, uploadBufName);
     DEBUG_PRINTLN(dataString);
@@ -154,7 +158,7 @@ void loop(){
     uploadFromFile(uploadBufName, errorBufName);
     prevUpload = now();
     /*Uploads tend to take a while, so for testing we set prevUpload afterwards,
-    * so it doesn't start another upload immediatly. This means that it will 
+    * so it doesn't start another upload immediately. This means that it will 
     * actually upload every (TIME_BETWEEN_UPLOADS + (time spent on upload)) 
     * seconds. For more accurate timing, set prevUpload *before* uploading.
     */
@@ -198,7 +202,7 @@ String stringDigits(int digits){
 }
 
 //Assembles a datum for recording (yyyy-mm-dd hh:mm:ss,'stationName',lc1,lc2,...,lcn)
-String makeDataString(float *cellReadings, int *readsSinceSave, String stationName, String *myString) {
+String makeDataString(float cellReadings[], int *readsSinceSave, String stationName, String *myString) {
   *myString = "";
   time_t t = now();
   *myString += dateDisplay(t);
@@ -215,7 +219,7 @@ String makeDataString(float *cellReadings, int *readsSinceSave, String stationNa
 }
 
 
-bool uploadFromFile(String uploadName, String errorName) {
+bool uploadFromFile(String uploadFileName, String errorFileName) {
   DEBUG_PRINTLN(F("attempting upload"));
   Adafruit_CC3000 cc3000 = Adafruit_CC3000(ADAFRUIT_CC3000_CS, ADAFRUIT_CC3000_IRQ, ADAFRUIT_CC3000_VBAT, SPI_CLOCK_DIVIDER); // you can change this clock speed
   
@@ -232,6 +236,7 @@ bool uploadFromFile(String uploadName, String errorName) {
   }
   
   DEBUG_PRINTLN(F("Wifi connected"));
+  // Wait for DHCP to set up our TCP/IP connection and DNS
   int DHCPcount = 0;
   while ((!cc3000.checkDHCP()) && (DHCPcount < (10*DHCP_TIMEOUT))) {
     delay(100);
@@ -257,12 +262,13 @@ bool uploadFromFile(String uploadName, String errorName) {
     return false;
   }
   
-  File uploadFile = SD.open(uploadName, FILE_READ);
+  File uploadFile = SD.open(uploadFileName, FILE_READ);
   String dataString;
   
   while (uploadFile.available()) {
     dataString = uploadFile.readStringUntil('\n');
-    DEBUG_PRINTLN("uploadFile: read '"+dataString+"' from '"+uploadName+"'");
+    DEBUG_PRINTLN("uploadFile: read '"+dataString+"' from '"+uploadFileName+"'");
+    // For some reason newlines were appearing among the data lines. Kill them.
     dataString.replace("\n", " ");
     dataString.trim();
     
@@ -272,7 +278,7 @@ bool uploadFromFile(String uploadName, String errorName) {
     }
     
     if (!postString(dataString, client)) {
-      saveToSD(dataString, errorName);
+      saveToSD(dataString, errorFileName);
       #if DEBUG
         saveToSD(dataString, "ERRLOG.TXT"); //keep a log of failed uploads
       #endif
@@ -287,12 +293,16 @@ bool uploadFromFile(String uploadName, String errorName) {
   cc3000.disconnect();
 
   DEBUG_PRINT("Juggling Files...");
+  /*
+   * File juggling! I've heard of this!
+   * All the contents in uploadFileName should have been either (1) uploaded, or
+   * (2) stuck into errorFileName. So uploadFileName is no longer needed.
+   */
+  SD.remove(uploadFileName); //get rid of uploaded file
   
-  SD.remove(uploadName); //get rid of uploaded file
-  
-  //copy contents of error file into new upload file
-  uploadFile = SD.open(uploadName, FILE_WRITE);
-  File errorFile = SD.open(errorName, FILE_READ);
+  // copy contents of error file into new upload file; retry will be first to be uploaded next time
+  uploadFile = SD.open(uploadFileName, FILE_WRITE);
+  File errorFile = SD.open(errorFileName, FILE_READ);
   char buf[100];
   int numBytes = 0;
   while (errorFile.available()) {
@@ -305,7 +315,7 @@ bool uploadFromFile(String uploadName, String errorName) {
   errorFile.close();
   
   
-  SD.remove(errorName); //get rid of error file
+  SD.remove(errorFileName); //get rid of error file
   
   DEBUG_PRINTLN("Files juggled.");
   
@@ -313,7 +323,10 @@ bool uploadFromFile(String uploadName, String errorName) {
   cc3000.stop();
   return true;
 }
-
+/*
+ * Our particular server has an HTTP endpoint of /time_series_data/upload, and the POST
+ * data should contain "csv_line=our,data,line"
+ */
 bool postString(String data, Adafruit_CC3000_Client client) {
   String PostData = "csv_line=" + data;
   if (client.connected()) {  //if we're not connected to the website, don't bother.
@@ -370,6 +383,10 @@ Adafruit_CC3000_Client connectToServer(Adafruit_CC3000 *cc3000) {
   return client;
 }
 
+/*
+ * When an upload occurs, the server responds with a text line containing a status code (TIME_HEADER)
+ * and a timestamp.
+ */
 bool processSyncMessage(Adafruit_CC3000_Client client) {
   unsigned long servertime;
   const unsigned long DEFAULT_TIME = 1357041600; // Jan 1 2013
@@ -396,6 +413,9 @@ bool saveToSD(String myString, String filePath) {
   return true;
 }
 
+/*
+ * The scaly pangolins of Madagascar...
+ */
 void goToSleep() {
   set_sleep_mode(SLEEP_MODE_PWR_DOWN);
   RTC.alarm(1); //clear alarm 1
