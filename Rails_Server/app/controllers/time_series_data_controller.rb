@@ -74,7 +74,8 @@ class TimeSeriesDataController < ApplicationController
       TimeSeriesDatum.create! datetime:timestamp, station:station, lc1:lc1,
         lc2:lc2, lc3:lc3, lc4:lc4
     end
-    render text:"OK"
+    ts = Time.now.gmtime.to_i
+    render text:"OK::#{ts}"
   end
 
   private

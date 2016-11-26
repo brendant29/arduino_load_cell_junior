@@ -49,7 +49,9 @@ void calibrate(HX711 *cell){
   float real_weight = Serial.parseFloat();
   float calibrator = cell_weight / real_weight;
   cell->set_scale(calibrator);
-
+  Serial.print("The calibration factor is: ");
+	Serial.println(calibrator);
+	
   //clear the serial buffer
    while (Serial.available() > 0) {
      Serial.read();
