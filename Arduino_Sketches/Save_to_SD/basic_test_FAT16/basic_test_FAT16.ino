@@ -40,7 +40,7 @@ Fat16 startSDfile(uint8_t chipSelect, const char *filePath[]) {
     Serial.println("No card!");
   }
   Fat16 newFile;
-  Fat16::init(&myCard);
+  Fat16.init(&myCard);
   newFile.open(*filePath, O_CREAT | O_RDWR | O_APPEND);
   return newFile;
 }

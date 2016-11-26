@@ -49,6 +49,8 @@ void loop() {
   }
   // if the file isn't open, pop up an error:
   else {
+    Serial.println("File not open. Please try again later.");
+    delay(2000);
     return;
   }
   delay(2000);

@@ -1,9 +1,6 @@
 #include <Adafruit_CC3000.h>
-#include <Adafruit_CC3000_Server.h>
-#include <ccspi.h>
 
-#include <SPI.h>
-#include <SD.h>
+//#include <SD.h>
 #include <TimeLib.h>
 #include <HX711.h>
 
@@ -39,7 +36,7 @@ unsigned long prevSave = 0;
 unsigned long prevUpload = 0;
 float cellReadings[SCALE_COUNT] = {0,0};
 int readsSinceSave = 0;
-File dataFile;
+//File dataFile;
 
 // These are the interrupt and control pins
 #define ADAFRUIT_CC3000_IRQ   3  // MUST be an interrupt pin!
@@ -70,9 +67,9 @@ Adafruit_CC3000_Client client;
 
 void setup() {
   Serial.begin(9600);
-  setSyncProvider( requestSync);  //set function to call when sync required
+//  setSyncProvider( requestSync);  //set function to call when sync required
   
-  dataFile = startSDfile(chipPin, fileName);
+  //dataFile = startSDfile(chipPin, fileName);
   
   //setting up the cells
   for(int ii=0; ii<SCALE_COUNT; ii++){
@@ -108,7 +105,7 @@ void loop(){
   //average the readings and save to SD card
   if (millis() - prevSave > TIME_BETWEEN_SAVES) {
     
-    saveString(makeDataString(cellReadings, &readsSinceSave, stationName), dataFile);
+    saveString(makeDataString(cellReadings, &readsSinceSave, stationName), /*dataFile*/);
     prevSave = millis();
   }
 
@@ -123,7 +120,7 @@ void loop(){
 //==================FUNCTIONS==================
 //=============================================
 String dateDisplay(time_t t) {
-  String date = String(year(t));
+  String date ;//= String(year(t));
   date += "-";
   date += String(month(t));
   date += "-";
@@ -132,7 +129,7 @@ String dateDisplay(time_t t) {
 }
 
 String timeDisplay(time_t t) {
-  String timer = stringDigits(hour(t));
+  String timer ;//= stringDigits(hour(t));
   timer += ":";
   timer += stringDigits(minute(t));
   timer += ":";
@@ -166,10 +163,10 @@ String makeDataString(float *cellReadings,int *readsSinceSave,String stationName
   return dataString;
 }
 
-void saveString(String mystring, File myFile){
+void saveString(String mystring, /*File myFile*/){
   Serial.println(mystring);
-  myFile.println(mystring);
-  myFile.flush();
+  //myFile.println(mystring);
+  //myFile.flush();
 }
 /*
 bool uploadStrings(String mystrings[]) {
@@ -209,7 +206,7 @@ Adafruit_CC3000_Client connectToServer() {
   Adafruit_CC3000_Client client = cc3000.connectTCP(ip, 80);
   return client;
 }
-
+/*
 File startSDfile(int chipSelect, String filePath) {
   if (!SD.begin(chipSelect)) {
     
@@ -217,7 +214,7 @@ File startSDfile(int chipSelect, String filePath) {
   File newFile = SD.open(filePath, FILE_WRITE);
   return newFile;
 }
-
+*/
 void processSyncMessage() {
   unsigned long pctime;
   const unsigned long DEFAULT_TIME = 1357041600; // Jan 1 2013
@@ -225,7 +222,7 @@ void processSyncMessage() {
   if(Serial.find(TIME_HEADER)) {
      pctime = Serial.parseInt();
      if( pctime >= DEFAULT_TIME) { // check the integer is a valid time (greater than Jan 1 2013)
-       setTime(pctime); // Sync Arduino clock to the time received on the serial port
+//       setTime(pctime); // Sync Arduino clock to the time received on the serial port
      }
   }
 }

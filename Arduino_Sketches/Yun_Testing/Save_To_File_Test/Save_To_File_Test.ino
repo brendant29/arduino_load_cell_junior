@@ -17,19 +17,19 @@ HX711 *allCells[SCALE_COUNT] = {NULL};
 void setup() {
   // Initialize the Bridge and the Serial
   Serial.begin(9600);
-  while (!SerialUSB); // wait for Serial port to connect.
-  SerialUSB.println("Filesystem datalogger\n");
+  while (!Serial); // wait for Serial port to connect.
+  Serial.println("Filesystem datalogger\n");
   Bridge.begin();
-  SerialUSB.println("bridge begun");
+  Serial.println("bridge begun");
   FileSystem.begin();
-  SerialUSB.println("filesystem initialized");
+  Serial.println("filesystem initialized");
 
   for(int ii=0; ii<SCALE_COUNT; ii++){
     allCells[ii] = new HX711(pinsDOUT[ii], pinsSCK[ii]);
     allCells[ii]->tare();
     allCells[ii]->set_scale(calibrations[ii]);
   }
-  SerialUSB.println("Loadcells initialized");
+  Serial.println("Loadcells initialized");
 }
 
 
@@ -57,9 +57,9 @@ void loop() {
   }
   // if the file isn't open, pop up an error:
   else {
-    SerialUSB.println("error opening datalog.txt");
+    Serial.println("error opening datalog.txt");
   }
-  SerialUSB.println(dataString);
+  Serial.println(dataString);
 
   delay(5000);
 
