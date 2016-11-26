@@ -4,12 +4,12 @@
 #define TIME_HEADER  'T'   // Header tag for serial time sync message
 #define TIME_REQUEST  7    // ASCII bell character requests a time sync message 
 #define SCALE_COUNT 4
-#define TIME_BETWEEN_READINGS 2000 //time between readings, in milliseconds
+#define TIME_BETWEEN_READINGS 1000 //time between readings, in milliseconds
 
-int pinsDOUT[SCALE_COUNT] = {3,5,7,9}; 
+int pinsDOUT[SCALE_COUNT] = {3,5,7,8}; 
 //The pins hooked up to the respective cells' DOUT
 
-int pinsSCK[SCALE_COUNT] = {2,4,6,8};
+int pinsSCK[SCALE_COUNT] = {2,4,6,9};
 //The pins hooked up to the respective cells' SCK
 
 float calibrations[SCALE_COUNT] = {-10000, -10000, -10000, -10000};
@@ -19,6 +19,8 @@ HX711 *allCells[SCALE_COUNT] = {NULL, NULL, NULL, NULL};
 
 void setup()  {
   Serial.begin(9600);
+  while (!Serial);
+  Serial.println("starting");
   //pinMode(13, OUTPUT);
   setSyncProvider( requestSync);  //set function to call when sync required
   
@@ -29,6 +31,7 @@ void setup()  {
     allCells[ii]->set_scale(calibrations[ii]);
   }
   delay(200);
+  Serial.println("started");
 }
 
 void loop(){    

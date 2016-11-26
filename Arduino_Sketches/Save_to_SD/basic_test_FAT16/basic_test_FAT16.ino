@@ -9,6 +9,8 @@ SdCard myCard;
 void setup() {
   // Open serial communications and wait for port to open:
   Serial.begin(9600);
+  pinMode(10,OUTPUT);
+  digitalWrite(10,HIGH);
   dataFile = startSDfile(chipPin, fileName);
   Serial.println("ready");
   while (Serial.available() < 1);
@@ -34,7 +36,7 @@ void loop() {
 
 Fat16 startSDfile(uint8_t chipSelect, const char *filePath[]) {
   if (!myCard.init(true, chipSelect)) {
-    //error("Whaaa?");
+    error("Whaaa?");
     Serial.println("No card!");
   }
   Fat16 newFile;
