@@ -27,10 +27,10 @@ String errorBufName = "ERROR.txt";
 #define DEBUG 0 //whether or not to do things over the serial port
 
 //The pins hooked up to the respective cells' DOUT
-byte pinsDOUT[SCALE_COUNT] = {41,8,8,8}; 
+byte pinsDOUT[SCALE_COUNT] = {23,27,31,35}; 
 
 //The pins hooked up to the respective cells' SCK
-byte pinsSCK[SCALE_COUNT] = {39,9,9,9};
+byte pinsSCK[SCALE_COUNT] = {25,29,33,37};
 
 //The calibration factors for the cells
 float calibrations[SCALE_COUNT] = {-10000, -10000, -10000, -10000};
