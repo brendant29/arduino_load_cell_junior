@@ -23,6 +23,7 @@ String errorBufName = "ERROR.txt";
 #define TIME_BETWEEN_SAVES 2     //time between saves, in seconds
 #define TIME_BETWEEN_UPLOADS 10  //time between uploads, in seconds
 #define RTC_ALARM_PIN 18 //Must be one of: 2, 18, 19
+#definte WAKEUP_EVERY_SECOND 1   // If 0, then wakes up every minute instead
 
 #define DEBUG 0 //whether or not to do things over the serial port
 
@@ -116,8 +117,13 @@ void setup() {
   
   RTC.alarmInterrupt(2, false); //disable alarm 2
   RTC.alarmInterrupt(1, true);   //enable alarm 1
-  RTC.setAlarm(ALM1_EVERY_SECOND, 0, 0, 0, 0); //set alarm 1 to fire once per second
-  
+	
+	#if WAKEUP_EVERY_SECOND
+	  RTC.setAlarm(ALM1_EVERY_SECOND, 0, 0, 0, 0); //set alarm 1 to fire once per second
+  #else // every minute
+		RTC.setAlarm(ALM1_MATCH_SECONDS, 0, 0, 0, 0); //set alarm 1 to fire once per minute
+	#endif
+	
   RTC.alarm(1);  //clear both alarms if they've gone off
   RTC.alarm(2);
   
